@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>舞者抽成系統 — DanceSoul</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f1ea; --panel:#fffdf9; --line:#e3ddcf; --ink:#2e2a24; --muted:#8a8271;
+    --accent:#b5651d; --accent-soft:#e9d9c4; --good:#5b7a5a; --bad:#a4453a;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-size:16px;}
+  header{background:var(--panel);border-bottom:1px solid var(--line);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+  header h1{font-size:18px;margin:0;font-weight:700;}
+  header .sub{color:var(--muted);font-size:13px;}
+  nav{display:flex;gap:4px;padding:12px 24px 0;background:var(--bg);flex-wrap:wrap;}
+  nav button{background:none;border:none;padding:10px 16px;font-family:inherit;font-size:15px;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0;}
+  nav button.active{background:var(--panel);color:var(--ink);font-weight:700;border:1px solid var(--line);border-bottom:none;}
+  main{padding:20px 24px 60px;max-width:1100px;margin:0 auto;}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;}
+  .stat{background:var(--accent-soft);border-radius:10px;padding:14px 16px;}
+  .stat .label{font-size:13px;color:var(--muted);}
+  .stat .value{font-size:24px;font-weight:900;margin-top:4px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
+  th{color:var(--muted);font-weight:700;font-size:13px;}
+  tr:hover td{background:#faf7f0;}
+  input,select,textarea{font-family:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);width:100%;}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
+  .field{margin-bottom:12px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .row > .field{flex:1;min-width:140px;}
+  button.primary{background:var(--accent);color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+  button.ghost{background:none;border:1px solid var(--line);padding:8px 14px;border-radius:8px;font-family:inherit;cursor:pointer;color:var(--ink);}
+  button.link{background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px;padding:2px 6px;}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+  h2{font-size:16px;margin:0 0 14px;}
+  .empty{color:var(--muted);text-align:center;padding:30px 0;}
+  .tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;background:var(--accent-soft);}
+  .item-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .item-row input{flex:1;}
+  .modal-bg{position:fixed;inset:0;background:rgba(46,42,36,.4);display:none;align-items:center;justify-content:center;z-index:50;}
+  .modal-bg.open{display:flex;}
+  .modal{background:var(--panel);border-radius:12px;padding:22px;width:min(520px,92vw);max-height:88vh;overflow:auto;}
+  .print-sheet{page-break-after:always;}
+  @media print{ header,nav,.no-print{display:none !important;} main{padding:0;} .panel{border:none;} }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>舞者抽成系統</h1>
+    <div class="sub">靈動力肢體開發有限公司 · CASE 演出活動</div>
+  </div>
+  <div class="sub" id="apiStatus">連線中…</div>
+</header>
+
+<nav id="nav"></nav>
+<main id="main"></main>
+
+<div class="modal-bg no-print" id="modalBg"><div class="modal" id="modalBody"></div></div>
+
+<script>
+// ====== 設定：貼上你部署後的 Apps Script 網頁應用程式網址 ======
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+
+const state = { tab: 'dashboard', dancers: [], events: [], disbursements: [] };
+
+const TABS = [
+  ['dashboard', '首頁'],
+  ['dancers', '舞者資料'],
+  ['events', '活動報價'],
+  ['disbursements', '撥款明細'],
+  ['signing', '簽收單'],
+  ['remuneration', '勞務報酬單'],
+];
+
+function apiGet(action, params={}) {
+  const qs = new URLSearchParams({ action, ...params }).toString();
+  return fetch(`${API_URL}?${qs}`).then(r => r.json()).then(r => {
+    if (r.error) throw new Error(r.error);
+    return r.data;
+  });
+}
+function apiPost(action, payload) {
+  return fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action, payload })
+  }).then(r => r.json()).then(r => {
+    if (r.error) throw new Error(r.error);
+    return r.data;
+  });
+}
+
+function renderNav() {
+  const nav = document.getElementById('nav');
+  nav.innerHTML = TABS.map(([id,label]) =>
+    `<button class="${state.tab===id?'active':''}" onclick="switchTab('${id}')">${label}</button>`
+  ).join('');
+}
+function switchTab(id) { state.tab = id; renderNav(); render(); }
+
+function render() {
+  const main = document.getElementById('main');
+  main.innerHTML = '<div class="empty">載入中…</div>';
+  const renderers = { dashboard: renderDashboard, dancers: renderDancers, events: renderEvents, disbursements: renderDisbursements, signing: renderSigning, remuneration: renderRemuneration };
+  renderers[state.tab]();
+}
+
+function money(n){ return (Number(n)||0).toLocaleString('zh-TW'); }
+
+// ---------- 首頁 ----------
+function renderDashboard() {
+  apiGet('dashboard').then(d => {
+    document.getElementById('main').innerHTML = `
+      <div class="panel">
+        <h2>本月概況（${d.thisMonth}）</h2>
+        <div class="grid">
+          <div class="stat"><div class="label">本月撥款筆數</div><div class="value">${d.thisMonthCount}</div></div>
+          <div class="stat"><div class="label">本月撥款總額</div><div class="value">$${money(d.thisMonthTotal)}</div></div>
+          <div class="stat"><div class="label">在職舞者</div><div class="value">${d.dancerCount}</div></div>
+          <div class="stat"><div class="label">活動總數</div><div class="value">${d.eventCount}</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>累計撥款前 10 名舞者</h2>
+        <table>
+          <thead><tr><th>舞者</th><th>累計實領金額</th></tr></thead>
+          <tbody>${d.topDancers.map(t=>`<tr><td>${t.name}</td><td>$${money(t.total)}</td></tr>`).join('') || '<tr><td colspan=2 class="empty">尚無資料</td></tr>'}</tbody>
+        </table>
+      </div>`;
+  }).catch(showErr);
+}
+
+// ---------- 舞者資料 ----------
+function renderDancers() {
+  apiGet('listDancers').then(list => {
+    state.dancers = list;
+    document.getElementById('main').innerHTML = `
+      <div class="panel">
+        <div class="toolbar"><h2>舞者資料（${list.length}）</h2><button class="primary" onclick="openDancerForm()">＋ 新增舞者</button></div>
+        <table>
+          <thead><tr><th>姓名</th><th>身分證字號</th><th>抽成比例</th><th>帳號</th><th>付款方式</th><th>常用項目</th><th>狀態</th><th></th></tr></thead>
+          <tbody>${list.map(d => `
+            <tr>
+              <td>${d.name}</td><td>${d.idNumber||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td>
+              <td>${d.payMethod||''}</td><td>${d.commonItem||''}</td>
+              <td><span class="tag">${d.status}</span></td>
+              <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button>
+                  <button class="link" onclick="deleteDancer('${d.name}')">刪除</button></td>
+            </tr>`).join('') || '<tr><td colspan=8 class="empty">尚無舞者資料</td></tr>'}
+          </tbody>
+        </table>
+      </div>`;
+  }).catch(showErr);
+}
+
+function openDancerForm(d) {
+  d = d || {};
+  showModal(`
+    <h2>${d.name ? '編輯舞者' : '新增舞者'}</h2>
+    <div class="row">
+      <div class="field"><label>姓名</label><input id="f_name" value="${d.name||''}"></div>
+      <div class="field"><label>身分證字號（開勞務報酬單用）</label><input id="f_idNumber" value="${d.idNumber||''}"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>抽成比例（0~1，例如 0.7）</label><input id="f_rate" type="number" step="0.01" value="${d.rate ?? ''}"></div>
+      <div class="field"><label>狀態</label>
+        <select id="f_status"><option ${d.status==='在職'?'selected':''}>在職</option><option ${d.status==='離職'?'selected':''}>離職</option></select>
+      </div>
+    </div>
+    <div class="field"><label>匯款帳號</label><input id="f_account" value="${d.account||''}"></div>
+    <div class="field"><label>付款方式</label><input id="f_payMethod" value="${d.payMethod||''}"></div>
+    <div class="field"><label>常用授款項目</label><input id="f_commonItem" value="${d.commonItem||''}"></div>
+    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
+      <button class="primary" onclick='submitDancer(${JSON.stringify(d.name||'')})'>儲存</button></div>
+  `);
+}
+function submitDancer(originalName) {
+  const payload = {
+    originalName,
+    name: val('f_name'), idNumber: val('f_idNumber'), rate: Number(val('f_rate')), account: val('f_account'),
+    payMethod: val('f_payMethod'), commonItem: val('f_commonItem'), status: val('f_status')
+  };
+  apiPost('saveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
+}
+function deleteDancer(name) {
+  if (!confirm(`確定刪除舞者「${name}」？`)) return;
+  apiPost('deleteDancer', { name }).then(renderDancers).catch(showErr);
+}
+
+// ---------- 活動報價 ----------
+function renderEvents() {
+  apiGet('listEvents').then(list => {
+    state.events = list;
+    document.getElementById('main').innerHTML = `
+      <div class="panel">
+        <div class="toolbar"><h2>活動報價（${list.length}）</h2><button class="primary" onclick="openEventForm()">＋ 新增活動</button></div>
+        <table>
+          <thead><tr><th>日期</th><th>活動名稱</th><th>客戶</th><th>總計</th><th>狀態</th><th></th></tr></thead>
+          <tbody>${list.map(e => `
+            <tr>
+              <td>${e.date||''}</td><td>${e.name}</td><td>${e.client||''}</td>
+              <td>$${money(e.total)}</td><td><span class="tag">${e.status}</span></td>
+              <td><button class="link" onclick='openEventForm(${JSON.stringify(e)})'>編輯</button>
+                  <button class="link" onclick="printQuote('${e.eventId}')">列印報價單</button>
+                  <button class="link" onclick="deleteEvent('${e.eventId}')">刪除</button></td>
+            </tr>`).join('') || '<tr><td colspan=6 class="empty">尚無活動</td></tr>'}
+          </tbody>
+        </table>
+      </div>`;
+  }).catch(showErr);
+}
+
+let editingItems = [];
+function openEventForm(e) {
+  e = e || {};
+  editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)) : [{label:'',amount:''}];
+  showModal(`
+    <h2>${e.eventId ? '編輯活動' : '新增活動'}</h2>
+    <div class="row">
+      <div class="field"><label>活動名稱</label><input id="f_name" value="${e.name||''}"></div>
+      <div class="field"><label>日期</label><input id="f_date" type="date" value="${e.date||''}"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>客戶</label><input id="f_client" value="${e.client||''}"></div>
+      <div class="field"><label>狀態</label>
+        <select id="f_status">${['報價中','已確認','已結案'].map(s=>`<option ${e.status===s?'selected':''}>${s}</option>`).join('')}</select>
+      </div>
+    </div>
+    <label>報價項目</label>
+    <div id="itemsList"></div>
+    <button class="ghost" onclick="addItemRow()">＋ 新增項目</button>
+    <div class="row" style="margin-top:12px;">
+      <div class="field"><label>折讓</label><input id="f_discount" type="number" value="${e.discount||0}"></div>
+      <div class="field"><label>營業稅率（例如 0.05）</label><input id="f_taxRate" type="number" step="0.01" value="0.05"></div>
+    </div>
+    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
+      <button class="primary" onclick='submitEvent(${JSON.stringify(e.eventId||'')})'>儲存</button></div>
+  `);
+  renderItemsList();
+}
+function renderItemsList() {
+  document.getElementById('itemsList').innerHTML = editingItems.map((it,i) => `
+    <div class="item-row">
+      <input placeholder="項目說明" value="${it.label||''}" onchange="editingItems[${i}].label=this.value">
+      <input placeholder="金額" type="number" style="max-width:120px;" value="${it.amount||''}" onchange="editingItems[${i}].amount=this.value">
+      <button class="link" onclick="removeItemRow(${i})">✕</button>
+    </div>`).join('');
+}
+function addItemRow(){ editingItems.push({label:'',amount:''}); renderItemsList(); }
+function removeItemRow(i){ editingItems.splice(i,1); renderItemsList(); }
+
+function submitEvent(eventId) {
+  const payload = {
+    eventId: eventId || undefined,
+    name: val('f_name'), date: val('f_date'), client: val('f_client'), status: val('f_status'),
+    items: editingItems.filter(it => it.label || it.amount),
+    discount: Number(val('f_discount')) || 0, taxRate: Number(val('f_taxRate')) || 0
+  };
+  apiPost('saveEvent', payload).then(() => { closeModal(); renderEvents(); }).catch(showErr);
+}
+function deleteEvent(eventId) {
+  if (!confirm('確定刪除這個活動？（撥款明細不會一併刪除）')) return;
+  apiPost('deleteEvent', { eventId }).then(renderEvents).catch(showErr);
+}
+function printQuote(eventId) {
+  const e = state.events.find(x => x.eventId === eventId);
+  if (!e) return;
+  const w = window.open('', '_blank');
+  w.document.write(`
+    <html><head><meta charset="utf-8"><title>${e.name} 報價單</title>
+    <style>body{font-family:'Noto Sans TC',sans-serif;padding:40px;} h1{font-size:18px;} table{width:100%;border-collapse:collapse;margin-top:16px;}
+    td,th{padding:8px;border-bottom:1px solid #ddd;text-align:left;} .r{text-align:right;}</style></head><body>
+    <h1>靈動力肢體開發有限公司</h1>
+    <div>台灣台北市大安區仁愛路四段425-1號3樓　電話 (02)-27113611 / 0988680611</div>
+    <h2>報價項目　${e.name}（${e.date||''}）</h2>
+    <table><thead><tr><th>項目</th><th class="r">金額</th></tr></thead><tbody>
+    ${e.items.map(it=>`<tr><td>${it.label}</td><td class="r">${money(it.amount)}</td></tr>`).join('')}
+    <tr><td>小計</td><td class="r">${money(e.subtotal)}</td></tr>
+    <tr><td>折讓</td><td class="r">${money(e.discount)}</td></tr>
+    <tr><td>營業稅</td><td class="r">${money(e.tax)}</td></tr>
+    <tr><td><b>總計</b></td><td class="r"><b>${money(e.total)}</b></td></tr>
+    </tbody></table>
+    <p style="margin-top:60px;">主管審核 / __________________</p>
+    </body></html>`);
+  w.document.close(); w.print();
+}
+
+// ---------- 撥款明細 ----------
+function renderDisbursements() {
+  Promise.all([apiGet('listDisbursements'), apiGet('listEvents'), apiGet('listDancers')]).then(([disb, events, dancers]) => {
+    state.disbursements = disb; state.events = events; state.dancers = dancers;
+    document.getElementById('main').innerHTML = `
+      <div class="panel">
+        <div class="toolbar"><h2>撥款明細（${disb.length}）</h2><button class="primary" onclick="openDisbForm()">＋ 新增撥款</button></div>
+        <table>
+          <thead><tr><th>發款日期</th><th>活動</th><th>舞者</th><th>授款項目</th><th>實領金額</th><th></th></tr></thead>
+          <tbody>${disb.map(d => `
+            <tr>
+              <td>${d.payDate||''}</td><td>${d.eventName||''}</td><td>${d.dancer}</td><td>${d.item}</td>
+              <td>$${money(d.actualAmount)}</td>
+              <td><button class="link" onclick='openDisbForm(${JSON.stringify(d)})'>編輯</button>
+                  <button class="link" onclick="deleteDisb('${d.id}')">刪除</button></td>
+            </tr>`).join('') || '<tr><td colspan=6 class="empty">尚無撥款紀錄</td></tr>'}
+          </tbody>
+        </table>
+      </div>`;
+  }).catch(showErr);
+}
+
+function openDisbForm(d) {
+  d = d || {};
+  const eventOpts = state.events.map(e => `<option value="${e.eventId}" ${d.eventId===e.eventId?'selected':''}>${e.name}</option>`).join('');
+  const dancerOpts = state.dancers.map(x => `<option value="${x.name}" ${d.dancer===x.name?'selected':''}>${x.name}</option>`).join('');
+  showModal(`
+    <h2>${d.id ? '編輯撥款' : '新增撥款'}</h2>
+    <div class="row">
+      <div class="field"><label>活動</label><select id="f_event"><option value="">— 選擇活動 —</option>${eventOpts}</select></div>
+      <div class="field"><label>舞者</label><select id="f_dancer" onchange="prefillRate()"><option value="">— 選擇舞者 —</option>${dancerOpts}</select></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>授款項目</label>
+        <select id="f_item" onchange="toggleItemFields()">
+          ${['排練費用','舞蹈演出','彩排費用','演出費','盯場費用','其他項目','拍攝費用','排練費用','教學','助教協助'].filter((v,i,a)=>a.indexOf(v)===i).map(v=>`<option ${d.item===v?'selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>抽成比例（留空則帶入舞者預設值）</label><input id="f_rate" type="number" step="0.01" value="${d.rate ?? ''}"></div>
+    </div>
+    <div class="row" id="rehearsalFields">
+      <div class="field"><label>排練時薪</label><input id="f_hourlyWage" type="number" value="${d.hourlyWage ?? ''}"></div>
+      <div class="field"><label>排練時數</label><input id="f_hours" type="number" value="${d.hours ?? ''}"></div>
+    </div>
+    <div class="row" id="quoteFields">
+      <div class="field"><label>原始報價</label><input id="f_originalQuote" type="number" value="${d.originalQuote ?? ''}"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>發款日期</label><input id="f_payDate" type="date" value="${d.payDate||''}"></div>
+      <div class="field"><label>備註</label><input id="f_note" value="${d.note||''}"></div>
+    </div>
+    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
+      <button class="primary" onclick='submitDisb(${JSON.stringify(d.id||'')})'>儲存（自動計算實領金額）</button></div>
+  `);
+  document.getElementById('f_event').value = d.eventId || '';
+  toggleItemFields();
+}
+function toggleItemFields() {
+  const isRehearsal = val('f_item') === '排練費用';
+  document.getElementById('rehearsalFields').style.display = isRehearsal ? 'flex' : 'none';
+  document.getElementById('quoteFields').style.display = isRehearsal ? 'none' : 'flex';
+}
+function prefillRate() {
+  const dancer = state.dancers.find(x => x.name === val('f_dancer'));
+  if (dancer && !val('f_rate')) document.getElementById('f_rate').value = dancer.rate;
+}
+function submitDisb(id) {
+  const eventSel = document.getElementById('f_event');
+  const eventName = eventSel.options[eventSel.selectedIndex]?.text || '';
+  const payload = {
+    id: id || undefined,
+    eventId: val('f_event'), eventName,
+    dancer: val('f_dancer'), item: val('f_item'), rate: val('f_rate') ? Number(val('f_rate')) : '',
+    hourlyWage: Number(val('f_hourlyWage'))||'', hours: Number(val('f_hours'))||'',
+    originalQuote: Number(val('f_originalQuote'))||'', payDate: val('f_payDate'), note: val('f_note')
+  };
+  apiPost('saveDisbursement', payload).then(() => { closeModal(); renderDisbursements(); }).catch(showErr);
+}
+function deleteDisb(id) {
+  if (!confirm('確定刪除這筆撥款紀錄？')) return;
+  apiPost('deleteDisbursement', { id }).then(renderDisbursements).catch(showErr);
+}
+
+// ---------- 簽收單 ----------
+function renderSigning() {
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('main').innerHTML = `
+    <div class="panel no-print">
+      <h2>舞者簽收單</h2>
+      <div class="row">
+        <div class="field"><label>年月</label><input id="s_month" type="month" value="${defaultMonth}"></div>
+        <div class="field" style="align-self:end;"><button class="primary" onclick="loadSigning()">產生本月所有簽收單</button></div>
+        <div class="field" style="align-self:end;"><button class="ghost" onclick="window.print()">列印</button></div>
+      </div>
+    </div>
+    <div id="signingResult"></div>`;
+  loadSigning();
+}
+function loadSigning() {
+  const month = val('s_month');
+  apiGet('signingSheet', { month }).then(list => {
+    document.getElementById('signingResult').innerHTML = list.length ? list.map(g => `
+      <div class="panel print-sheet">
+        <h2>舞者老師CASE費簽收單 — ${g.dancer}（${g.month}）</h2>
+        <table>
+          <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>抽成比例</th><th>實領金額</th><th>備註</th></tr></thead>
+          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>${r.rate?Math.round(r.rate*100)+'%':''}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td></tr>`).join('')}
+          <tr><td colspan=4><b>合計</b></td><td colspan=2><b>$${money(g.total)}</b></td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:40px;">舞者簽名 / __________________</p>
+      </div>`).join('') : '<div class="panel"><div class="empty">這個月沒有撥款紀錄</div></div>';
+  }).catch(showErr);
+}
+
+// ---------- 勞務報酬單 ----------
+function renderRemuneration() {
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('main').innerHTML = `
+    <div class="panel no-print">
+      <h2>勞務報酬單（同一舞者同月合併開單）</h2>
+      <div class="row">
+        <div class="field"><label>年月</label><input id="r_month" type="month" value="${defaultMonth}"></div>
+        <div class="field" style="align-self:end;"><button class="primary" onclick="loadRemuneration()">產生本月所有報酬單</button></div>
+        <div class="field" style="align-self:end;"><button class="ghost" onclick="window.print()">列印</button></div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;">扣繳規則：執行業務者之報酬扣繳率 10%，同月給付合計後扣繳稅額未滿 2,000 元（約給付2萬元以下）免扣繳。這是依現行「各類所得扣繳率標準」設定，實際認定方式建議與你的記帳士／會計師確認一次。</p>
+    </div>
+    <div id="remunResult"></div>`;
+  loadRemuneration();
+}
+function loadRemuneration() {
+  const month = val('r_month');
+  apiGet('remuneration', { month }).then(list => {
+    document.getElementById('remunResult').innerHTML = list.length ? list.map(g => `
+      <div class="panel print-sheet">
+        <div class="row">
+          <div><b>${g.withholder.name}</b>　統一編號：${g.withholder.taxId||'＿＿＿＿＿＿＿＿'}<br>${g.withholder.address}　${g.withholder.phone}</div>
+        </div>
+        <h2 style="margin-top:12px;">勞務報酬單 — ${g.dancer}（${g.month}）</h2>
+        <div class="row">
+          <div>所得人：${g.dancer}</div>
+          <div>身分證字號：${g.idNumber || '＿＿＿＿＿＿＿＿＿＿'}</div>
+          <div>所得類別：執行業務者之報酬（9A）</div>
+        </div>
+        <table style="margin-top:10px;">
+          <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
+          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
+        </table>
+        <div class="grid" style="margin-top:14px;">
+          <div class="stat"><div class="label">給付總額</div><div class="value">$${money(g.gross)}</div></div>
+          <div class="stat"><div class="label">扣繳稅額（${Math.round(g.taxRate*100)}%）</div><div class="value">$${money(g.tax)}</div></div>
+          <div class="stat"><div class="label">實付淨額</div><div class="value">$${money(g.net)}</div></div>
+        </div>
+        <p style="margin-top:40px;">扣繳義務人簽章 / __________________　　所得人簽名 / __________________</p>
+      </div>`).join('') : '<div class="panel"><div class="empty">這個月沒有撥款紀錄</div></div>';
+  }).catch(showErr);
+}
+
+// ---------- 共用 ----------
+function val(id){ return document.getElementById(id).value; }
+function showModal(html){ document.getElementById('modalBody').innerHTML = html; document.getElementById('modalBg').classList.add('open'); }
+function closeModal(){ document.getElementById('modalBg').classList.remove('open'); }
+function showErr(err){ console.error(err); alert('發生錯誤：' + err.message); }
+
+document.getElementById('modalBg').addEventListener('click', e => { if (e.target.id === 'modalBg') closeModal(); });
+
+// ---------- 啟動 ----------
+renderNav();
+if (API_URL.includes('PASTE_YOUR')) {
+  document.getElementById('apiStatus').textContent = '尚未設定 API 網址';
+  document.getElementById('main').innerHTML = '<div class="panel"><div class="empty">請先在 index.html 把 API_URL 換成你部署好的 Apps Script 網頁應用程式網址。</div></div>';
+} else {
+  document.getElementById('apiStatus').textContent = '已連線';
+  render();
+}
+</script>
+</body>
+</html>
