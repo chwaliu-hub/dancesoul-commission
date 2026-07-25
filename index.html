@@ -75,7 +75,6 @@ const TABS = [
   ['dancers', '舞者資料'],
   ['events', '活動報價'],
   ['disbursements', '撥款明細'],
-  ['signing', '簽收單'],
   ['remuneration', '勞務報酬單'],
 ];
 
@@ -107,7 +106,7 @@ function switchTab(id) { state.tab = id; renderNav(); render(); }
 function render() {
   const main = document.getElementById('main');
   main.innerHTML = '<div class="empty">載入中…</div>';
-  const renderers = { dashboard: renderDashboard, dancers: renderDancers, events: renderEvents, disbursements: renderDisbursements, signing: renderSigning, remuneration: renderRemuneration };
+  const renderers = { dashboard: renderDashboard, dancers: renderDancers, events: renderEvents, disbursements: renderDisbursements, remuneration: renderRemuneration };
   renderers[state.tab]();
 }
 
@@ -148,7 +147,7 @@ function renderDancers() {
           <tbody>${list.map(d => `
             <tr>
               <td>${d.name}</td><td>${d.realName||'<span style="color:var(--bad,#a4453a);">未填</span>'}</td><td>${d.idNumber||''}</td><td>${d.address||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td>
-              <td><span class="tag">${d.status}</span>${d.exemptNhi?' <span class="tag">免二代健保</span>':''}</td>
+              <td><span class="tag">${d.status}</span>${d.exemptNhi?' <span class="tag">免二代健保</span>':''}${d.exemptTax?' <span class="tag">免所得稅</span>':''}</td>
               <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button>
                   <button class="link" onclick="deleteDancer('${d.name}')">刪除</button></td>
             </tr>`).join('') || '<tr><td colspan=8 class="empty">尚無舞者資料</td></tr>'}
@@ -180,6 +179,9 @@ function openDancerForm(d) {
     <div class="field" style="margin-top:4px;">
       <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_exemptNhi" style="width:auto;" ${d.exemptNhi?'checked':''}> 免扣二代健保（此收入已作為職業工會健保投保金額依據）</label>
     </div>
+    <div class="field" style="margin-top:4px;">
+      <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_exemptTax" style="width:auto;" ${d.exemptTax?'checked':''}> 免扣10%所得稅（例如本人是老闆、或屬於兼職所得而非執行業務所得）</label>
+    </div>
     <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
       <button class="primary" onclick='submitDancer(${JSON.stringify(d.name||'')})'>儲存</button></div>
   `);
@@ -189,7 +191,8 @@ function submitDancer(originalName) {
     originalName,
     name: val('f_name'), realName: val('f_realName'), idNumber: val('f_idNumber'), address: val('f_address'), rate: Number(val('f_rate')), account: val('f_account'),
     status: val('f_status'),
-    exemptNhi: document.getElementById('f_exemptNhi').checked
+    exemptNhi: document.getElementById('f_exemptNhi').checked,
+    exemptTax: document.getElementById('f_exemptTax').checked
   };
   apiPost('saveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
 }
@@ -532,7 +535,7 @@ function loadRemuneration() {
         </table>
         <div class="grid" style="margin-top:14px;">
           <div class="stat"><div class="label">給付總額</div><div class="value">$${money(g.gross)}</div></div>
-          <div class="stat"><div class="label">扣繳稅額（${Math.round(g.taxRate*100)}%）</div><div class="value">$${money(g.tax)}</div></div>
+          <div class="stat"><div class="label">扣繳稅額（${Math.round(g.taxRate*100)}%）${g.exemptTax?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.tax)}</div></div>
           <div class="stat"><div class="label">二代健保補充保費（${g.nhiRate*100}%）${g.exemptNhi?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.nhi)}</div></div>
           <div class="stat"><div class="label">實付淨額</div><div class="value">$${money(g.net)}</div></div>
         </div>

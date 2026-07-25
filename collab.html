@@ -65,6 +65,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwI8La23JAtb2JIooIXYIln
 const STAFF_TOKEN = 'dancesoul2026case';
 
 const state = { tab: 'events', dancers: [], events: [] };
+let pendingExemptTax = false;
 const TABS = [ ['events', '活動報價'], ['dancers', '舞者資料'], ['adddisb', '新增費用明細'] ];
 
 function apiGet(action, params={}) {
@@ -284,6 +285,7 @@ function renderDancers() {
 }
 function openDancerForm(d) {
   d = d || {};
+  pendingExemptTax = !!d.exemptTax; // 這欄不開放同事編輯，只是原值原封不動存回去，避免被洗掉
   showModal(`
     <h2>${d.name ? '編輯舞者' : '新增舞者'}</h2>
     <div class="row">
@@ -313,7 +315,8 @@ function submitDancer(originalName) {
     originalName,
     name: val('f_name'), realName: val('f_realName'), idNumber: val('f_idNumber'), address: val('f_address'), rate: Number(val('f_rate')), account: val('f_account'),
     status: val('f_status'),
-    exemptNhi: document.getElementById('f_exemptNhi').checked
+    exemptNhi: document.getElementById('f_exemptNhi').checked,
+    exemptTax: pendingExemptTax
   };
   apiPost('staffSaveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
 }
