@@ -149,7 +149,7 @@ function renderDancers() {
             <tr>
               <td>${d.name}</td><td>${d.idNumber||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td>
               <td>${d.payMethod||''}</td><td>${d.commonItem||''}</td>
-              <td><span class="tag">${d.status}</span></td>
+              <td><span class="tag">${d.status}</span>${d.exemptNhi?' <span class="tag">免二代健保</span>':''}</td>
               <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button>
                   <button class="link" onclick="deleteDancer('${d.name}')">刪除</button></td>
             </tr>`).join('') || '<tr><td colspan=8 class="empty">尚無舞者資料</td></tr>'}
@@ -176,6 +176,9 @@ function openDancerForm(d) {
     <div class="field"><label>匯款帳號</label><input id="f_account" value="${d.account||''}"></div>
     <div class="field"><label>付款方式</label><input id="f_payMethod" value="${d.payMethod||''}"></div>
     <div class="field"><label>常用授款項目</label><input id="f_commonItem" value="${d.commonItem||''}"></div>
+    <div class="field" style="margin-top:4px;">
+      <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_exemptNhi" style="width:auto;" ${d.exemptNhi?'checked':''}> 免扣二代健保（此收入已作為職業工會健保投保金額依據）</label>
+    </div>
     <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
       <button class="primary" onclick='submitDancer(${JSON.stringify(d.name||'')})'>儲存</button></div>
   `);
@@ -184,7 +187,8 @@ function submitDancer(originalName) {
   const payload = {
     originalName,
     name: val('f_name'), idNumber: val('f_idNumber'), rate: Number(val('f_rate')), account: val('f_account'),
-    payMethod: val('f_payMethod'), commonItem: val('f_commonItem'), status: val('f_status')
+    payMethod: val('f_payMethod'), commonItem: val('f_commonItem'), status: val('f_status'),
+    exemptNhi: document.getElementById('f_exemptNhi').checked
   };
   apiPost('saveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
 }
@@ -498,7 +502,7 @@ function renderRemuneration() {
         <div class="field" style="align-self:end;"><button class="primary" onclick="loadRemuneration()">產生本月所有報酬單</button></div>
         <div class="field" style="align-self:end;"><button class="ghost" onclick="window.print()">列印</button></div>
       </div>
-      <p style="color:var(--muted);font-size:13px;">扣繳規則：執行業務者之報酬扣繳率 10%，同月給付合計後扣繳稅額未滿 2,000 元（約給付2萬元以下）免扣繳。這是依現行「各類所得扣繳率標準」設定，實際認定方式建議與你的記帳士／會計師確認一次。</p>
+      <p style="color:var(--muted);font-size:13px;">扣繳規則：執行業務者之報酬扣繳率 10%，同月給付合計後扣繳稅額未滿 2,000 元（約給付2萬元以下）免扣繳。<br>二代健保補充保費：同月給付合計達 2萬元，整筆金額扣 2.11%；若該舞者以此收入投保健保（已在舞者資料勾選「免扣二代健保」）則不扣。<br>以上是依現行規定設定的預設邏輯，實際認定方式建議與你的記帳士／會計師確認一次。</p>
     </div>
     <div id="remunResult"></div>`;
   loadRemuneration();
@@ -526,6 +530,7 @@ function loadRemuneration() {
         <div class="grid" style="margin-top:14px;">
           <div class="stat"><div class="label">給付總額</div><div class="value">$${money(g.gross)}</div></div>
           <div class="stat"><div class="label">扣繳稅額（${Math.round(g.taxRate*100)}%）</div><div class="value">$${money(g.tax)}</div></div>
+          <div class="stat"><div class="label">二代健保補充保費（${g.nhiRate*100}%）${g.exemptNhi?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.nhi)}</div></div>
           <div class="stat"><div class="label">實付淨額</div><div class="value">$${money(g.net)}</div></div>
         </div>
         <p style="margin-top:40px;">扣繳義務人簽章 / __________________　　所得人簽名 / __________________</p>
