@@ -144,15 +144,14 @@ function renderDancers() {
       <div class="panel">
         <div class="toolbar"><h2>舞者資料（${list.length}）</h2><button class="primary" onclick="openDancerForm()">＋ 新增舞者</button></div>
         <table>
-          <thead><tr><th>暱稱</th><th>真實姓名</th><th>身分證字號</th><th>抽成比例</th><th>帳號</th><th>付款方式</th><th>常用項目</th><th>狀態</th><th></th></tr></thead>
+          <thead><tr><th>暱稱</th><th>真實姓名</th><th>身分證字號</th><th>抽成比例</th><th>帳號</th><th>狀態</th><th></th></tr></thead>
           <tbody>${list.map(d => `
             <tr>
               <td>${d.name}</td><td>${d.realName||'<span style="color:var(--bad,#a4453a);">未填</span>'}</td><td>${d.idNumber||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td>
-              <td>${d.payMethod||''}</td><td>${d.commonItem||''}</td>
               <td><span class="tag">${d.status}</span>${d.exemptNhi?' <span class="tag">免二代健保</span>':''}</td>
               <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button>
                   <button class="link" onclick="deleteDancer('${d.name}')">刪除</button></td>
-            </tr>`).join('') || '<tr><td colspan=9 class="empty">尚無舞者資料</td></tr>'}
+            </tr>`).join('') || '<tr><td colspan=7 class="empty">尚無舞者資料</td></tr>'}
           </tbody>
         </table>
       </div>`;
@@ -177,8 +176,6 @@ function openDancerForm(d) {
       </div>
     </div>
     <div class="field"><label>匯款帳號</label><input id="f_account" value="${d.account||''}"></div>
-    <div class="field"><label>付款方式</label><input id="f_payMethod" value="${d.payMethod||''}"></div>
-    <div class="field"><label>常用授款項目</label><input id="f_commonItem" value="${d.commonItem||''}"></div>
     <div class="field" style="margin-top:4px;">
       <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_exemptNhi" style="width:auto;" ${d.exemptNhi?'checked':''}> 免扣二代健保（此收入已作為職業工會健保投保金額依據）</label>
     </div>
@@ -190,7 +187,7 @@ function submitDancer(originalName) {
   const payload = {
     originalName,
     name: val('f_name'), realName: val('f_realName'), idNumber: val('f_idNumber'), rate: Number(val('f_rate')), account: val('f_account'),
-    payMethod: val('f_payMethod'), commonItem: val('f_commonItem'), status: val('f_status'),
+    status: val('f_status'),
     exemptNhi: document.getElementById('f_exemptNhi').checked
   };
   apiPost('saveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
