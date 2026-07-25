@@ -144,15 +144,15 @@ function renderDancers() {
       <div class="panel">
         <div class="toolbar"><h2>舞者資料（${list.length}）</h2><button class="primary" onclick="openDancerForm()">＋ 新增舞者</button></div>
         <table>
-          <thead><tr><th>姓名</th><th>身分證字號</th><th>抽成比例</th><th>帳號</th><th>付款方式</th><th>常用項目</th><th>狀態</th><th></th></tr></thead>
+          <thead><tr><th>暱稱</th><th>真實姓名</th><th>身分證字號</th><th>抽成比例</th><th>帳號</th><th>付款方式</th><th>常用項目</th><th>狀態</th><th></th></tr></thead>
           <tbody>${list.map(d => `
             <tr>
-              <td>${d.name}</td><td>${d.idNumber||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td>
+              <td>${d.name}</td><td>${d.realName||'<span style="color:var(--bad,#a4453a);">未填</span>'}</td><td>${d.idNumber||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td>
               <td>${d.payMethod||''}</td><td>${d.commonItem||''}</td>
               <td><span class="tag">${d.status}</span>${d.exemptNhi?' <span class="tag">免二代健保</span>':''}</td>
               <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button>
                   <button class="link" onclick="deleteDancer('${d.name}')">刪除</button></td>
-            </tr>`).join('') || '<tr><td colspan=8 class="empty">尚無舞者資料</td></tr>'}
+            </tr>`).join('') || '<tr><td colspan=9 class="empty">尚無舞者資料</td></tr>'}
           </tbody>
         </table>
       </div>`;
@@ -164,11 +164,14 @@ function openDancerForm(d) {
   showModal(`
     <h2>${d.name ? '編輯舞者' : '新增舞者'}</h2>
     <div class="row">
-      <div class="field"><label>姓名</label><input id="f_name" value="${d.name||''}"></div>
-      <div class="field"><label>身分證字號（開勞務報酬單用）</label><input id="f_idNumber" value="${d.idNumber||''}"></div>
+      <div class="field"><label>暱稱（用來連結活動、撥款紀錄，不要隨便改）</label><input id="f_name" value="${d.name||''}"></div>
+      <div class="field"><label>真實姓名（開勞務報酬單用）</label><input id="f_realName" value="${d.realName||''}"></div>
     </div>
     <div class="row">
+      <div class="field"><label>身分證字號（開勞務報酬單用）</label><input id="f_idNumber" value="${d.idNumber||''}"></div>
       <div class="field"><label>抽成比例（0~1，例如 0.7）</label><input id="f_rate" type="number" step="0.01" value="${d.rate ?? ''}"></div>
+    </div>
+    <div class="row">
       <div class="field"><label>狀態</label>
         <select id="f_status"><option ${d.status==='在職'?'selected':''}>在職</option><option ${d.status==='離職'?'selected':''}>離職</option></select>
       </div>
@@ -186,7 +189,7 @@ function openDancerForm(d) {
 function submitDancer(originalName) {
   const payload = {
     originalName,
-    name: val('f_name'), idNumber: val('f_idNumber'), rate: Number(val('f_rate')), account: val('f_account'),
+    name: val('f_name'), realName: val('f_realName'), idNumber: val('f_idNumber'), rate: Number(val('f_rate')), account: val('f_account'),
     payMethod: val('f_payMethod'), commonItem: val('f_commonItem'), status: val('f_status'),
     exemptNhi: document.getElementById('f_exemptNhi').checked
   };
@@ -517,9 +520,9 @@ function loadRemuneration() {
         <div class="row">
           <div><b>${g.withholder.name}</b>　統一編號：${g.withholder.taxId||'＿＿＿＿＿＿＿＿'}<br>${g.withholder.address}　${g.withholder.phone}</div>
         </div>
-        <h2 style="margin-top:12px;">勞務報酬單 — ${g.dancer}（${g.month}）</h2>
+        <h2 style="margin-top:12px;">勞務報酬單 — ${g.realName || '（尚未填真實姓名）'}（${g.month}）</h2>
         <div class="row">
-          <div>所得人：${g.dancer}</div>
+          <div>所得人：${g.realName || `<span style="color:var(--bad,#a4453a);">尚未填真實姓名，暱稱：${g.dancer}</span>`}</div>
           <div>身分證字號：${g.idNumber || '＿＿＿＿＿＿＿＿＿＿'}</div>
           <div>所得類別：執行業務者之報酬（9A）</div>
         </div>
