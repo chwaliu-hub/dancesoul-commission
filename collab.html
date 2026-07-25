@@ -65,7 +65,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwI8La23JAtb2JIooIXYIln
 const STAFF_TOKEN = 'dancesoul2026case';
 
 const state = { tab: 'events', dancers: [], events: [] };
-const TABS = [ ['events', '活動報價'], ['dancers', '舞者資料'], ['adddisb', '新增撥款'] ];
+const TABS = [ ['events', '活動報價'], ['dancers', '舞者資料'], ['adddisb', '新增費用明細'] ];
 
 function apiGet(action, params={}) {
   const qs = new URLSearchParams({ action, token: STAFF_TOKEN, ...params }).toString();
@@ -318,7 +318,7 @@ function submitDancer(originalName) {
   apiPost('staffSaveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
 }
 
-// ---------- 新增撥款（沒有列表、沒有發款日欄位）----------
+// ---------- 新增費用明細（沒有列表、沒有發款日欄位）----------
 function renderAddDisb() {
   Promise.all([apiGet('staffListEvents'), apiGet('staffListDancers')]).then(([events, dancers]) => {
     state.events = events; state.dancers = dancers;
@@ -326,7 +326,7 @@ function renderAddDisb() {
     const dancerOpts = dancers.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
     document.getElementById('main').innerHTML = `
       <div class="panel">
-        <h2>新增撥款</h2>
+        <h2>新增費用明細</h2>
         <div id="confirmArea"></div>
         <div class="row">
           <div class="field"><label>活動</label><select id="f_event"><option value="">— 選擇活動 —</option>${eventOpts}</select></div>
