@@ -458,6 +458,7 @@ function renderDisbursements() {
         <div class="toolbar"><h2>撥款明細</h2><button class="primary" onclick="openDisbForm()">＋ 新增撥款</button></div>
         <div class="row" style="margin-bottom:10px;">
           <div class="field" style="flex:2;"><input id="disbSearch" placeholder="搜尋活動／舞者／項目" oninput="renderDisbTable()"></div>
+          <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showFinalizedDisb" style="width:auto;" onchange="renderDisbTable()"> 顯示已核定（已有發款日期）</label></div>
         </div>
         <div class="row" id="batchBar" style="display:none;align-items:center;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin-bottom:10px;">
           <div style="flex:1;">已選 <span id="batchCount">0</span> 筆</div>
@@ -471,8 +472,12 @@ function renderDisbursements() {
 }
 function renderDisbTable() {
   const q = (document.getElementById('disbSearch')?.value || '').toLowerCase();
-  const list = state.disbursements.filter(d => !q ||
-    (d.eventName||'').toLowerCase().includes(q) || (d.dancer||'').toLowerCase().includes(q) || (d.item||'').toLowerCase().includes(q));
+  const showFinalized = document.getElementById('showFinalizedDisb')?.checked;
+  const list = state.disbursements.filter(d => {
+    if (!showFinalized && d.payDate) return false;
+    if (!q) return true;
+    return (d.eventName||'').toLowerCase().includes(q) || (d.dancer||'').toLowerCase().includes(q) || (d.item||'').toLowerCase().includes(q);
+  });
   document.getElementById('disbTableWrap').innerHTML = `
     <table>
       <thead><tr><th></th><th>發款日期</th><th>活動</th><th>舞者</th><th>授款項目</th><th>實領金額</th><th></th></tr></thead>
