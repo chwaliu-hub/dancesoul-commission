@@ -21,6 +21,11 @@
   main{padding:20px 24px 60px;max-width:1100px;margin:0 auto;}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px;}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;}
+  .sumtable{width:100%;border-collapse:collapse;}
+  .sumtable td{border:none;font-size:15px;padding:6px 4px;}
+  .sumtable tr td.slabel{text-align:left;}
+  .sumtable tr td.sprice{text-align:right;border-bottom:1px solid var(--accent);}
+  .sumtable tr.total td{font-weight:700;font-size:16px;}
   .stat{background:var(--accent-soft);border-radius:10px;padding:14px 16px;}
   .stat .label{font-size:13px;color:var(--muted);}
   .stat .value{font-size:24px;font-weight:900;margin-top:4px;}
@@ -76,6 +81,7 @@ const TABS = [
   ['events', '活動報價'],
   ['disbursements', '撥款明細'],
   ['remuneration', '勞務報酬單'],
+  ['signing', '簽收單'],
   ['annual', '年度總表'],
   ['log', '異動紀錄'],
 ];
@@ -108,7 +114,7 @@ function switchTab(id) { state.tab = id; renderNav(); render(); }
 function render() {
   const main = document.getElementById('main');
   main.innerHTML = '<div class="empty">載入中…</div>';
-  const renderers = { dashboard: renderDashboard, dancers: renderDancers, events: renderEvents, disbursements: renderDisbursements, remuneration: renderRemuneration, annual: renderAnnual, log: renderLog };
+  const renderers = { dashboard: renderDashboard, dancers: renderDancers, events: renderEvents, disbursements: renderDisbursements, remuneration: renderRemuneration, signing: renderSigning, annual: renderAnnual, log: renderLog };
   renderers[state.tab]();
 }
 
@@ -572,30 +578,35 @@ function renderSigning() {
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   document.getElementById('main').innerHTML = `
     <div class="panel no-print">
-      <h2>舞者簽收單</h2>
+      <h2>舞者簽收單（同一舞者同月合併，暱稱顯示，含稅額／二代健保扣除）</h2>
       <div class="row">
         <div class="field"><label>年月</label><input id="s_month" type="month" value="${defaultMonth}"></div>
         <div class="field" style="align-self:end;"><button class="primary" onclick="loadSigning()">產生本月所有簽收單</button></div>
         <div class="field" style="align-self:end;"><button class="ghost" onclick="window.print()">列印</button></div>
       </div>
+      <p style="color:var(--muted);font-size:13px;">金額算法跟勞務報酬單完全一樣（扣繳稅額10%、二代健保2.11%），這裡只是換成暱稱顯示、拿掉身分證字號/地址這些正式報稅才需要的欄位，給舞者簽收確認實拿金額用。</p>
     </div>
     <div id="signingResult"></div>`;
   loadSigning();
 }
 function loadSigning() {
   const month = val('s_month');
-  apiGet('signingSheet', { month }).then(list => {
+  apiGet('remuneration', { month }).then(list => {
     const el = document.getElementById('signingResult');
     if (!el) return;
     el.innerHTML = list.length ? list.map(g => `
       <div class="panel print-sheet">
         <h2>舞者老師CASE費簽收單 — ${g.dancer}（${g.month}）</h2>
         <table>
-          <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>抽成比例</th><th>實領金額</th><th>備註</th></tr></thead>
-          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>${r.rate?Math.round(r.rate*100)+'%':''}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td></tr>`).join('')}
-          <tr><td colspan=4><b>合計</b></td><td colspan=2><b>$${money(g.total)}</b></td></tr>
-          </tbody>
+          <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
+          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
         </table>
+        <div class="grid" style="margin-top:14px;">
+          <div class="stat"><div class="label">給付總額</div><div class="value">$${money(g.gross)}</div></div>
+          <div class="stat"><div class="label">扣繳稅額（${Math.round(g.taxRate*100)}%）${g.exemptTax?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.tax)}</div></div>
+          <div class="stat"><div class="label">二代健保（${g.nhiRate*100}%）${g.exemptNhi?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.nhi)}</div></div>
+          <div class="stat"><div class="label">實拿淨額</div><div class="value">$${money(g.net)}</div></div>
+        </div>
         <p style="margin-top:40px;">舞者簽名 / __________________</p>
       </div>`).join('') : '<div class="panel"><div class="empty">這個月沒有撥款紀錄</div></div>';
   }).catch(showErr);
@@ -625,30 +636,45 @@ function loadRemuneration() {
     state.remunList = list;
     const el = document.getElementById('remunResult');
     if (!el) return; // 使用者已切換分頁，這批結果不用再顯示
-    el.innerHTML = list.length ? list.map(g => `
+    el.innerHTML = list.length ? list.map(g => {
+      const dates = g.rows.map(r=>r.payDate).filter(Boolean).sort();
+      const periodStart = dates[0] || ''; const periodEnd = dates[dates.length-1] || '';
+      const today = new Date().toISOString().slice(0,10);
+      return `
       <div class="panel print-sheet">
         <div class="row">
           <div><b>${g.withholder.name}</b>　統一編號：${g.withholder.taxId||'＿＿＿＿＿＿＿＿'}<br>${g.withholder.address}　${g.withholder.phone}</div>
         </div>
-        <h2 style="margin-top:12px;">勞務報酬單 — ${g.realName || '（尚未填真實姓名）'}（${g.month}）</h2>
+        <h2 style="margin-top:12px;">勞務報酬單（${g.month}）</h2>
+        <div class="meta-row">填表日期：${today}</div>
+        <hr style="border:none;border-top:1px solid var(--line);margin:10px 0;">
         <div class="row">
-          <div>所得人：${g.realName || `<span style="color:var(--bad,#a4453a);">尚未填真實姓名，暱稱：${g.dancer}</span>`}</div>
+          <div>所得人資料　☑本國籍　姓名：${g.realName || `<span style="color:var(--bad,#a4453a);">尚未填真實姓名（暱稱：${g.dancer}）</span>`}</div>
           <div>身分證字號：${g.idNumber || '＿＿＿＿＿＿＿＿＿＿'}</div>
-          <div>所得類別：執行業務者之報酬（9A）</div>
         </div>
-        <div class="meta-row" style="margin-top:2px;">戶籍地址：${g.address || '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
+        <div class="meta-row">戶籍地址：${g.address || '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
+        <div class="meta-row">勞務內容期間：自 ${periodStart} 至 ${periodEnd}</div>
+        <div class="meta-row">所得類別：☑ 9A 執行業務所得</div>
         <table style="margin-top:10px;">
           <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
           <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
         </table>
-        <div class="grid" style="margin-top:14px;">
-          <div class="stat"><div class="label">給付總額</div><div class="value">$${money(g.gross)}</div></div>
-          <div class="stat"><div class="label">扣繳稅額（${Math.round(g.taxRate*100)}%）${g.exemptTax?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.tax)}</div></div>
-          <div class="stat"><div class="label">二代健保補充保費（${g.nhiRate*100}%）${g.exemptNhi?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.nhi)}</div></div>
-          <div class="stat"><div class="label">實付淨額</div><div class="value">$${money(g.net)}</div></div>
+        <table class="sumtable" style="margin-top:14px;">
+          <tr><td class="slabel" style="width:60%;">支領金額</td><td class="sprice">新台幣 $${money(g.gross)} 元</td></tr>
+          <tr><td class="slabel">代扣所得稅（${Math.round(g.taxRate*100)}%）${g.exemptTax?' <span class="tag">免扣</span>':''}</td><td class="sprice">新台幣 $${money(g.tax)} 元</td></tr>
+          <tr><td class="slabel">二代健保補充保費（${g.nhiRate*100}%）${g.exemptNhi?' <span class="tag">免扣</span>':''}</td><td class="sprice">新台幣 $${money(g.nhi)} 元</td></tr>
+          <tr class="total"><td class="slabel">支領淨額</td><td class="sprice">新台幣 $${money(g.net)} 元</td></tr>
+        </table>
+        <div class="row" style="margin-top:10px;">
+          <div>匯款帳號：${g.account || '＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
+          <div>付款方式：☑匯款　□現金　□支票</div>
         </div>
-        <p style="margin-top:40px;">扣繳義務人簽章 / __________________　　所得人簽名 / __________________</p>
-      </div>`).join('') : '<div class="panel"><div class="empty">這個月沒有撥款紀錄</div></div>';
+        <div class="row" style="margin-top:40px;">
+          <div>領款人簽名 / __________________</div>
+          <div>會計/經辦人 / __________________</div>
+        </div>
+      </div>`;
+    }).join('') : '<div class="panel"><div class="empty">這個月沒有撥款紀錄</div></div>';
   }).catch(showErr);
 }
 function exportRemunerationCsv() {
