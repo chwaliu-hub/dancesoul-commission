@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>舞者抽成系統 — DanceSoul</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Anton&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#f4f1ea; --panel:#fffdf9; --line:#e3ddcf; --ink:#2e2a24; --muted:#8a8271;
@@ -26,6 +26,8 @@
   .sumtable tr td.slabel{text-align:left;}
   .sumtable tr td.sprice{text-align:right;border-bottom:1px solid var(--accent);}
   .sumtable tr.total td{font-weight:700;font-size:16px;}
+  .doc-logo{font-family:'Anton',sans-serif;font-size:24px;letter-spacing:1.5px;line-height:1;}
+  .doc-tagline{font-size:9px;letter-spacing:2.5px;color:var(--muted);margin-top:2px;margin-bottom:10px;}
   .stat{background:var(--accent-soft);border-radius:10px;padding:14px 16px;}
   .stat .label{font-size:13px;color:var(--muted);}
   .stat .value{font-size:24px;font-weight:900;margin-top:4px;}
@@ -596,6 +598,8 @@ function loadSigning() {
     if (!el) return;
     el.innerHTML = list.length ? list.map(g => `
       <div class="panel print-sheet">
+        <div class="doc-logo">DANCE SOUL</div>
+        <div class="doc-tagline">THE PROFESSIONAL DANCE STUDIO</div>
         <h2>舞者老師CASE費簽收單 — ${g.dancer}（${g.month}）</h2>
         <table>
           <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
@@ -607,7 +611,8 @@ function loadSigning() {
           <div class="stat"><div class="label">二代健保（${g.nhiRate*100}%）${g.exemptNhi?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.nhi)}</div></div>
           <div class="stat"><div class="label">實拿淨額</div><div class="value">$${money(g.net)}</div></div>
         </div>
-        <p style="margin-top:40px;">舞者簽名 / __________________</p>
+        <p style="margin-top:40px;">主管審核 / __________________</p>
+        <p style="margin-top:24px;">舞者簽名 / __________________</p>
       </div>`).join('') : '<div class="panel"><div class="empty">這個月沒有撥款紀錄</div></div>';
   }).catch(showErr);
 }
