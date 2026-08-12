@@ -277,20 +277,28 @@ function renderDancers() {
     state.dancers = list;
     document.getElementById('main').innerHTML = `
       <div class="panel">
-        <div class="toolbar"><h2>舞者資料（${list.length}）</h2><button class="primary" onclick="openDancerForm()">＋ 新增舞者</button></div>
-        <table>
-          <thead><tr><th>暱稱</th><th>真實姓名</th><th>抽成比例</th><th>帳號</th><th>戶籍地址</th><th>狀態</th><th>工會投保</th><th></th></tr></thead>
-          <tbody>${list.map(d => `
-            <tr>
-              <td>${d.name}</td><td>${d.realName||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td><td>${d.address||''}</td>
-              <td><span class="tag">${d.status}</span></td>
-              <td>${d.exemptNhi?'<span class="tag">已投保（免扣二代健保）</span>':'—'}</td>
-              <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button></td>
-            </tr>`).join('') || '<tr><td colspan=8 class="empty">尚無舞者資料</td></tr>'}
-          </tbody>
-        </table>
+        <div class="toolbar"><h2>舞者資料</h2><button class="primary" onclick="openDancerForm()">＋ 新增舞者</button></div>
+        <div class="field" style="margin-bottom:10px;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showIdleDancers" style="width:auto;" onchange="renderDancersTable()"> 顯示閒置／離職</label></div>
+        <div id="dancersTableWrap"></div>
       </div>`;
+    renderDancersTable();
   }).catch(showErr);
+}
+function renderDancersTable() {
+  const showIdle = document.getElementById('showIdleDancers')?.checked;
+  const list = state.dancers.filter(d => showIdle || d.status === '在職');
+  document.getElementById('dancersTableWrap').innerHTML = `
+    <table>
+      <thead><tr><th>暱稱</th><th>真實姓名</th><th>抽成比例</th><th>帳號</th><th>戶籍地址</th><th>狀態</th><th>工會投保</th><th></th></tr></thead>
+      <tbody>${list.map(d => `
+        <tr>
+          <td>${d.name}</td><td>${d.realName||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td><td>${d.address||''}</td>
+          <td><span class="tag">${d.status}</span></td>
+          <td>${d.exemptNhi?'<span class="tag">已投保（免扣二代健保）</span>':'—'}</td>
+          <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button></td>
+        </tr>`).join('') || '<tr><td colspan=8 class="empty">沒有符合的舞者</td></tr>'}
+      </tbody>
+    </table>`;
 }
 function openDancerForm(d) {
   d = d || {};
