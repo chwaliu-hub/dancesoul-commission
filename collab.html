@@ -307,7 +307,7 @@ function openDancerForm(d) {
     </div>
     <div class="row">
       <div class="field"><label>狀態</label>
-        <select id="f_status"><option ${d.status==='在職'?'selected':''}>在職</option><option ${d.status==='離職'?'selected':''}>離職</option></select>
+        <select id="f_status"><option ${d.status==='在職'?'selected':''}>在職</option><option ${d.status==='閒置'?'selected':''}>閒置</option><option ${d.status==='離職'?'selected':''}>離職</option></select>
       </div>
     </div>
     <div class="field"><label>匯款帳號</label><input id="f_account" value="${d.account||''}"></div>
@@ -336,7 +336,7 @@ function renderAddDisb() {
   Promise.all([apiGet('staffListEvents'), apiGet('staffListDancers'), apiGet('staffListPendingDisbursements')]).then(([events, dancers, pending]) => {
     state.events = events; state.dancers = dancers; pendingDisbs = pending;
     const eventOpts = events.map(e => `<option value="${e.eventId}">${e.name}</option>`).join('');
-    const dancerOpts = dancers.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+    const dancerOpts = dancers.filter(d => d.status === '在職').map(d => `<option value="${d.name}">${d.name}</option>`).join('');
     document.getElementById('main').innerHTML = `
       <div class="panel">
         <h2>新增費用明細</h2>
@@ -410,7 +410,8 @@ function submitAddDisb() {
 // ---- 編輯／刪除待核定紀錄 ----
 function openEditPending(r) {
   const eventOpts = state.events.map(e => `<option value="${e.eventId}" ${r.eventId===e.eventId?'selected':''}>${e.name}</option>`).join('');
-  const dancerOpts = state.dancers.map(d => `<option value="${d.name}" ${r.dancer===d.name?'selected':''}>${d.name}</option>`).join('');
+  const dancerOpts = state.dancers.filter(d => d.status === '在職' || d.name === r.dancer)
+    .map(d => `<option value="${d.name}" ${r.dancer===d.name?'selected':''}>${d.name}${d.status!=='在職'?`（${d.status}）`:''}</option>`).join('');
   showModal(`
     <h2>編輯費用明細</h2>
     <div class="row">

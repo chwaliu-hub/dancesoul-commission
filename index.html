@@ -155,7 +155,10 @@ function renderDancers() {
           <div><button class="ghost" onclick="exportUnionList()">匯出工會投保清單</button>
           <button class="primary" onclick="openDancerForm()">＋ 新增舞者</button></div>
         </div>
-        <div class="field" style="margin-bottom:10px;"><input id="dancerSearch" placeholder="搜尋暱稱／真實姓名" oninput="renderDancersTable()"></div>
+        <div class="row" style="margin-bottom:10px;">
+          <div class="field" style="flex:2;"><input id="dancerSearch" placeholder="搜尋暱稱／真實姓名" oninput="renderDancersTable()"></div>
+          <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showIdleDancers" style="width:auto;" onchange="renderDancersTable()"> 顯示閒置／離職</label></div>
+        </div>
         <div id="dancersTableWrap"></div>
       </div>`;
     renderDancersTable();
@@ -163,7 +166,13 @@ function renderDancers() {
 }
 function renderDancersTable() {
   const q = (document.getElementById('dancerSearch')?.value || '').toLowerCase();
-  const list = state.dancers.filter(d => !q || d.name.toLowerCase().includes(q) || (d.realName||'').toLowerCase().includes(q));
+  const showIdle = document.getElementById('showIdleDancers')?.checked;
+  const list = state.dancers.filter(d => {
+    const matchesSearch = !q || d.name.toLowerCase().includes(q) || (d.realName||'').toLowerCase().includes(q);
+    if (!matchesSearch) return false;
+    if (q) return true; // 搜尋時不受閒置篩選限制，找得到人
+    return showIdle || d.status === '在職';
+  });
   document.getElementById('dancersTableWrap').innerHTML = `
     <table>
       <thead><tr><th>暱稱</th><th>真實姓名</th><th>身分證字號</th><th>戶籍地址</th><th>抽成比例</th><th>帳號</th><th>狀態</th><th></th></tr></thead>
@@ -205,7 +214,7 @@ function openDancerForm(d) {
     </div>
     <div class="row">
       <div class="field"><label>狀態</label>
-        <select id="f_status"><option ${d.status==='在職'?'selected':''}>在職</option><option ${d.status==='離職'?'selected':''}>離職</option></select>
+        <select id="f_status"><option ${d.status==='在職'?'selected':''}>在職</option><option ${d.status==='閒置'?'selected':''}>閒置</option><option ${d.status==='離職'?'selected':''}>離職</option></select>
       </div>
     </div>
     <div class="field"><label>匯款帳號</label><input id="f_account" value="${d.account||''}"></div>
@@ -516,7 +525,8 @@ function applyBatchPayDate() {
 function openDisbForm(d) {
   d = d || {};
   const eventOpts = state.events.map(e => `<option value="${e.eventId}" ${d.eventId===e.eventId?'selected':''}>${e.name}</option>`).join('');
-  const dancerOpts = state.dancers.map(x => `<option value="${x.name}" ${d.dancer===x.name?'selected':''}>${x.name}</option>`).join('');
+  const dancerOpts = state.dancers.filter(x => x.status === '在職' || x.name === d.dancer)
+    .map(x => `<option value="${x.name}" ${d.dancer===x.name?'selected':''}>${x.name}${x.status!=='在職'?`（${x.status}）`:''}</option>`).join('');
   showModal(`
     <h2>${d.id ? '編輯撥款' : '新增撥款'}</h2>
     <div class="row">
