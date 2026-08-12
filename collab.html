@@ -279,6 +279,11 @@ function renderDancers() {
       <div class="panel">
         <div class="toolbar"><h2>舞者資料</h2><button class="primary" onclick="openDancerForm()">＋ 新增舞者</button></div>
         <div class="field" style="margin-bottom:10px;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showIdleDancers" style="width:auto;" onchange="renderDancersTable()"> 顯示閒置／離職</label></div>
+        <div class="row" id="dancerBatchBar" style="display:none;align-items:center;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin-bottom:10px;">
+          <div style="flex:1;">已選 <span id="dancerBatchCount">0</span> 位</div>
+          <button class="ghost" onclick="applyBatchDancerStatus('在職')">設為在職</button>
+          <button class="ghost" onclick="applyBatchDancerStatus('閒置')">設為閒置</button>
+        </div>
         <div id="dancersTableWrap"></div>
       </div>`;
     renderDancersTable();
@@ -289,16 +294,29 @@ function renderDancersTable() {
   const list = state.dancers.filter(d => showIdle || d.status === '在職');
   document.getElementById('dancersTableWrap').innerHTML = `
     <table>
-      <thead><tr><th>暱稱</th><th>真實姓名</th><th>抽成比例</th><th>帳號</th><th>戶籍地址</th><th>狀態</th><th>工會投保</th><th></th></tr></thead>
+      <thead><tr><th></th><th>暱稱</th><th>真實姓名</th><th>抽成比例</th><th>帳號</th><th>戶籍地址</th><th>狀態</th><th>工會投保</th><th></th></tr></thead>
       <tbody>${list.map(d => `
         <tr>
+          <td><input type="checkbox" class="dancerCheck" style="width:auto;" value="${d.name}" onchange="updateDancerBatchBar()"></td>
           <td>${d.name}</td><td>${d.realName||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td><td>${d.address||''}</td>
           <td><span class="tag">${d.status}</span></td>
           <td>${d.exemptNhi?'<span class="tag">已投保（免扣二代健保）</span>':'—'}</td>
           <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button></td>
-        </tr>`).join('') || '<tr><td colspan=8 class="empty">沒有符合的舞者</td></tr>'}
+        </tr>`).join('') || '<tr><td colspan=9 class="empty">沒有符合的舞者</td></tr>'}
       </tbody>
     </table>`;
+  updateDancerBatchBar();
+}
+function updateDancerBatchBar() {
+  const checked = document.querySelectorAll('.dancerCheck:checked');
+  document.getElementById('dancerBatchBar').style.display = checked.length ? 'flex' : 'none';
+  document.getElementById('dancerBatchCount').textContent = checked.length;
+}
+function applyBatchDancerStatus(status) {
+  const names = Array.from(document.querySelectorAll('.dancerCheck:checked')).map(c => c.value);
+  if (!names.length) return;
+  if (!confirm(`確定把選中的 ${names.length} 位舞者都設為「${status}」？`)) return;
+  apiPost('staffBatchSetDancerStatus', { names, status }).then(() => renderDancers()).catch(showErr);
 }
 function openDancerForm(d) {
   d = d || {};
