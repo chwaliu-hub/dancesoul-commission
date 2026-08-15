@@ -465,7 +465,8 @@ function renderPendingGroups() {
     groups[key].records.push(r);
   });
   const groupList = Object.values(groups).map(g => ({
-    ...g, total: g.records.reduce((s,r)=>s+(Number(r.actualAmount)||0),0)
+    ...g, total: g.records.reduce((s,r)=>s+(Number(r.actualAmount)||0),0),
+    dancerCount: new Set(g.records.map(r=>r.dancer)).size
   })).sort((a,b) => a.eventName.localeCompare(b.eventName));
 
   document.getElementById('pendingGroupsWrap').innerHTML = groupList.map(g => {
@@ -473,7 +474,7 @@ function renderPendingGroups() {
     return `
     <div class="panel" style="margin-bottom:10px;padding:14px 16px;">
       <div class="toolbar" style="margin-bottom:0;cursor:pointer;" onclick="togglePendingGroup('${g.eventId}')">
-        <div><b>${g.eventName}</b> <span class="tag" style="margin-left:8px;">${g.records.length}筆</span></div>
+        <div><b>${g.eventName}</b> <span class="tag" style="margin-left:8px;">${g.dancerCount}位舞者</span> <span class="tag" style="margin-left:4px;">${g.records.length}筆</span></div>
         <div style="font-weight:700;">$${money(g.total)}　<span style="color:var(--muted);">${expanded?'收合 ▲':'展開 ▼'}</span></div>
       </div>
       ${expanded ? `

@@ -568,6 +568,7 @@ function renderDisbursements() {
         <div class="row" style="margin-bottom:10px;">
           <div class="field" style="flex:2;"><input id="disbSearch" placeholder="搜尋活動／舞者／項目" oninput="renderDisbTable()"></div>
           <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showFinalizedDisb" style="width:auto;" onchange="renderDisbTable()"> 顯示已核定（已有發款日期）</label></div>
+          <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="flatDisbView" style="width:auto;" onchange="renderDisbTable()"> 平舖顯示（不分組）</label></div>
         </div>
         <div class="row" id="batchBar" style="display:none;align-items:center;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin-bottom:10px;">
           <div style="flex:1;">已選 <span id="batchCount">0</span> 筆</div>
@@ -583,6 +584,31 @@ let expandedEventIds = new Set();
 function renderDisbTable() {
   const q = (document.getElementById('disbSearch')?.value || '').toLowerCase();
   const showFinalized = document.getElementById('showFinalizedDisb')?.checked;
+  const flatView = document.getElementById('flatDisbView')?.checked;
+
+  if (flatView) {
+    const list = state.disbursements.filter(d => {
+      if (!showFinalized && d.payDate) return false;
+      if (!q) return true;
+      return (d.eventName||'').toLowerCase().includes(q) || (d.dancer||'').toLowerCase().includes(q) || (d.item||'').toLowerCase().includes(q);
+    });
+    document.getElementById('disbTableWrap').innerHTML = `
+      <table>
+        <thead><tr><th></th><th>活動ID</th><th>發款日期</th><th>活動</th><th>舞者</th><th>授款項目</th><th>實領金額</th><th></th></tr></thead>
+        <tbody>${list.map(d => `
+          <tr>
+            <td><input type="checkbox" class="disbCheck" style="width:auto;" value="${d.id}" onchange="updateBatchBar()"></td>
+            <td style="color:var(--muted);font-size:12px;">${d.eventId||''}</td>
+            <td>${d.payDate||''}</td><td>${d.eventName||''}</td><td>${d.dancer}</td><td>${d.item}</td>
+            <td>$${money(d.actualAmount)}</td>
+            <td><button class="link" onclick='openDisbForm(${JSON.stringify(d)})'>編輯</button>
+                <button class="link" onclick="deleteDisb('${d.id}')">刪除</button></td>
+          </tr>`).join('') || '<tr><td colspan=8 class="empty">沒有符合的紀錄</td></tr>'}
+        </tbody>
+      </table>`;
+    updateBatchBar();
+    return;
+  }
 
   // 依活動分組
   const groups = {};
@@ -594,7 +620,8 @@ function renderDisbTable() {
   let groupList = Object.values(groups).map(g => {
     const pendingCount = g.records.filter(r => !r.payDate).length;
     const total = g.records.reduce((s,r) => s + (Number(r.actualAmount)||0), 0);
-    return { ...g, pendingCount, total };
+    const dancerCount = new Set(g.records.map(r => r.dancer)).size;
+    return { ...g, pendingCount, total, dancerCount };
   });
   if (q) groupList = groupList.filter(g => g.eventName.toLowerCase().includes(q) ||
     g.records.some(r => (r.dancer||'').toLowerCase().includes(q) || (r.item||'').toLowerCase().includes(q)));
@@ -610,7 +637,9 @@ function renderDisbTable() {
       <div class="toolbar" style="margin-bottom:0;cursor:pointer;" onclick="toggleDisbGroup('${g.eventId}')">
         <div>
           <b>${g.eventName}</b>
-          <span class="tag" style="margin-left:8px;">共${g.records.length}筆</span>
+          <span style="color:var(--muted);font-size:11px;margin-left:6px;">活動ID: ${g.eventId||'(空白)'}</span>
+          <span class="tag" style="margin-left:8px;">${g.dancerCount}位舞者</span>
+          <span class="tag" style="margin-left:4px;">共${g.records.length}筆</span>
           ${g.pendingCount ? `<span class="tag" style="margin-left:4px;">${g.pendingCount}筆待核定</span>` : ''}
         </div>
         <div style="font-weight:700;">$${money(g.total)}　<span style="color:var(--muted);">${expanded?'收合 ▲':'展開 ▼'}</span></div>
