@@ -450,51 +450,19 @@ function renderAddDisb() {
       <div class="panel">
         <h2>待核定清單（${pending.length}）</h2>
         <p style="color:var(--muted);font-size:13px;margin-top:-8px;">這裡只會顯示「老闆還沒填發款日期」的紀錄，方便你自己核對剛登錄的有沒有錯。一旦老闆核定填了發款日期，這筆就會從這裡消失，不能再看也不能再改。</p>
-        <div id="pendingGroupsWrap"></div>
-      </div>`;
-    toggleItemFields();
-    renderPendingGroups();
-  }).catch(showErr);
-}
-let expandedPendingEventIds = new Set();
-function renderPendingGroups() {
-  const groups = {};
-  pendingDisbs.forEach(r => {
-    const key = r.eventId || '(未指定活動)';
-    if (!groups[key]) groups[key] = { eventId: r.eventId, eventName: r.eventName || '(未指定活動)', records: [] };
-    groups[key].records.push(r);
-  });
-  const groupList = Object.values(groups).map(g => ({
-    ...g, total: g.records.reduce((s,r)=>s+(Number(r.actualAmount)||0),0),
-    dancerCount: new Set(g.records.map(r=>r.dancer)).size
-  })).sort((a,b) => a.eventName.localeCompare(b.eventName));
-
-  document.getElementById('pendingGroupsWrap').innerHTML = groupList.map(g => {
-    const expanded = expandedPendingEventIds.has(g.eventId);
-    return `
-    <div class="panel" style="margin-bottom:10px;padding:14px 16px;">
-      <div class="toolbar" style="margin-bottom:0;cursor:pointer;" onclick="togglePendingGroup('${g.eventId}')">
-        <div><b>${g.eventName}</b> <span class="tag" style="margin-left:8px;">${g.dancerCount}位舞者</span> <span class="tag" style="margin-left:4px;">${g.records.length}筆</span></div>
-        <div style="font-weight:700;">$${money(g.total)}　<span style="color:var(--muted);">${expanded?'收合 ▲':'展開 ▼'}</span></div>
-      </div>
-      ${expanded ? `
-        <table style="margin-top:12px;">
-          <thead><tr><th>舞者</th><th>授款項目</th><th>金額</th><th>備註</th><th></th></tr></thead>
-          <tbody>${g.records.map(r => `
+        <table>
+          <thead><tr><th>活動</th><th>舞者</th><th>授款項目</th><th>金額</th><th>備註</th><th></th></tr></thead>
+          <tbody>${pending.map(r => `
             <tr>
-              <td>${r.dancer}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td>
+              <td>${r.eventName}</td><td>${r.dancer}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td>
               <td><button class="link" onclick='openEditPending(${JSON.stringify(r)})'>編輯</button>
                   <button class="link" onclick="deletePending('${r.id}')">刪除</button></td>
-            </tr>`).join('')}
+            </tr>`).join('') || '<tr><td colspan=6 class="empty">目前沒有待核定的紀錄</td></tr>'}
           </tbody>
-        </table>` : ''}
-    </div>`;
-  }).join('') || '<div class="panel"><div class="empty">目前沒有待核定的紀錄</div></div>';
-}
-function togglePendingGroup(eventId) {
-  if (expandedPendingEventIds.has(eventId)) expandedPendingEventIds.delete(eventId);
-  else expandedPendingEventIds.add(eventId);
-  renderPendingGroups();
+        </table>
+      </div>`;
+    toggleItemFields();
+  }).catch(showErr);
 }
 // ---------- 整場活動批次登錄（發款日一律留空）----------
 function openBatchDisbForm() {
