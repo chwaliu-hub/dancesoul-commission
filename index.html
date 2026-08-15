@@ -55,6 +55,9 @@
   .item-row-line2 select{flex:1;min-width:120px;}
   .item-row-line2 input{flex:1;min-width:80px;}
   .item-row-amt{min-width:90px;text-align:right;font-weight:700;margin-left:auto;}
+  .field-mini{display:flex;flex-direction:column;gap:2px;}
+  .field-mini label{font-size:11px;color:var(--muted);}
+  .field-mini input{width:80px;}
   .item-row input{flex:1;}
   .modal-bg{position:fixed;inset:0;background:rgba(46,42,36,.4);display:none;align-items:center;justify-content:center;z-index:50;}
   .modal-bg.open{display:flex;}
@@ -83,6 +86,16 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycbwI8La23JAtb2JIooIXYIln3rPPU38UO59ZyeRKx5-eBZRp_BrY2CdxKKa4ZPcqAYxE9A/exec';
 
 const state = { tab: 'dashboard', dancers: [], events: [], disbursements: [] };
+const ITEM_TYPES = {
+  '演出費': ['unitPrice','qty','songs'],
+  '排練費用': ['hourlyWage','hours','qty'],
+  '彩排費': ['unitPrice','qty'],
+  '教室費': ['hourlyWage','hours'],
+  '編舞費': ['unitPrice'],
+  '錄音/剪輯費': ['unitPrice'],
+  '其他': ['unitPrice','qty']
+};
+const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數'};
 
 const TABS = [
   ['dashboard', '首頁'],
@@ -328,7 +341,7 @@ function quickToggleEvent(eventId, field, value) {
 let editingItems = [];
 function openEventForm(e) {
   e = e || {};
-  editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)) : [{label:'',note:'',unitPrice:'',qty:1,extraQty:'',extraLabel:'',amount:0}];
+  editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)) : [{type:'演出費',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}];
   showModal(`
     <h2>${e.eventId ? '編輯活動' : '新增活動'}</h2>
     <div class="row">
@@ -341,7 +354,7 @@ function openEventForm(e) {
         <select id="f_status">${['報價中','已確認','已結案'].map(s=>`<option ${e.status===s?'selected':''}>${s}</option>`).join('')}</select>
       </div>
     </div>
-    <label>報價項目（單價 × 人數 × 加乘數量，金額會自動算，也可以直接改金額覆蓋）</label>
+    <label>報價項目</label>
     <div id="itemsList"></div>
     <button class="ghost" onclick="addItemRow()">＋ 新增項目</button>
     <div class="row" style="margin-top:12px;">
@@ -379,34 +392,49 @@ function togglePaidFields() {
 }
 function renderItemsList() {
   document.getElementById('itemsList').innerHTML = editingItems.map((it,i) => {
+    const type = it.type || '演出費';
+    const fields = ITEM_TYPES[type];
     return `
     <div class="item-row-v2">
       <div class="item-row-line1">
-        <input placeholder="項目說明（例如：演出費／排練費）" value="${it.label||''}" oninput="editingItems[${i}].label=this.value">
-        <input placeholder="備註（選填，例如：第2~3首）" value="${it.note||''}" oninput="editingItems[${i}].note=this.value">
+        <select onchange="setItemType(${i}, this.value)">
+          ${Object.keys(ITEM_TYPES).map(t=>`<option ${type===t?'selected':''}>${t}</option>`).join('')}
+        </select>
+        ${type==='其他' ? `<input placeholder="項目名稱" value="${it.customLabel||''}" oninput="editingItems[${i}].customLabel=this.value">` : ''}
+        <input placeholder="備註（選填）" value="${it.note||''}" oninput="editingItems[${i}].note=this.value">
       </div>
       <div class="item-row-line2">
-        <input placeholder="單價" type="number" value="${it.unitPrice ?? ''}" oninput="updateItemAmount(${i}, 'unitPrice', this.value)">
-        <span style="color:var(--muted);">×</span>
-        <input placeholder="人數" type="number" value="${it.qty ?? 1}" oninput="updateItemAmount(${i}, 'qty', this.value)">
-        <span style="color:var(--muted);">×</span>
-        <input placeholder="加乘(選填)" type="number" value="${it.extraQty ?? ''}" oninput="updateItemAmount(${i}, 'extraQty', this.value)">
-        <input placeholder="單位(如hr/首)" value="${it.extraLabel ?? ''}" style="max-width:100px;" oninput="editingItems[${i}].extraLabel=this.value">
-        <span style="color:var(--muted);">=</span>
-        <input placeholder="金額" type="number" id="itemAmt_${i}" value="${it.amount||0}" style="font-weight:700;" oninput="editingItems[${i}].amount=Number(this.value)||0">
+        ${fields.map(f => `
+          <span class="field-mini"><label>${FIELD_LABEL[f]}</label><input type="number" value="${it[f] ?? (f==='qty'||f==='hours'||f==='songs'?1:'')}" oninput="updateItemAmount(${i}, '${f}', this.value)"></span>
+        `).join('')}
+        <span class="field-mini"><label>金額</label><input type="number" id="itemAmt_${i}" value="${it.amount||0}" style="font-weight:700;" oninput="editingItems[${i}].amount=Number(this.value)||0"></span>
         <button class="link" onclick="removeItemRow(${i})">✕ 刪除</button>
       </div>
     </div>`;
   }).join('');
 }
-function updateItemAmount(i, field, value) {
-  editingItems[i][field] = value;
+function setItemType(i, type) {
+  editingItems[i].type = type;
+  renderItemsList();
+  recalcItemAmount(i);
+}
+function recalcItemAmount(i) {
   const it = editingItems[i];
-  it.amount = (Number(it.unitPrice) || 0) * (Number(it.qty) || 1) * (Number(it.extraQty) || 1);
+  const fields = ITEM_TYPES[it.type || '演出費'];
+  let amount = 1;
+  fields.forEach(f => {
+    const def = (f === 'qty' || f === 'hours' || f === 'songs') ? 1 : 0;
+    amount *= (Number(it[f]) ?? def) || def;
+  });
+  it.amount = amount;
   const el = document.getElementById(`itemAmt_${i}`);
   if (el) el.value = it.amount;
 }
-function addItemRow(){ editingItems.push({label:'',note:'',unitPrice:'',qty:1,extraQty:'',extraLabel:'',amount:0}); renderItemsList(); }
+function updateItemAmount(i, field, value) {
+  editingItems[i][field] = value;
+  recalcItemAmount(i);
+}
+function addItemRow(){ editingItems.push({type:'演出費',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}); renderItemsList(); }
 function removeItemRow(i){ editingItems.splice(i,1); renderItemsList(); }
 
 function submitEvent(eventId) {
@@ -491,13 +519,15 @@ function printQuote(eventId) {
       <thead><tr><th>Request Payment</th><th class="price">Price.</th></tr></thead>
       <tbody>
         ${e.items.map(it=>{
-          let breakdown = '';
-          if (it.unitPrice) {
-            breakdown = `$${money(it.unitPrice)}`;
-            if (it.qty && it.qty != 1) breakdown += ` × ${it.qty}人`;
-            if (it.extraQty) breakdown += ` × ${it.extraQty}${it.extraLabel||''}`;
-          }
-          return `<tr><td>${it.label}${it.note?`（${it.note}）`:''}${breakdown?` <span style="color:#888;font-size:11px;">(${breakdown})</span>`:''}</td><td><div class="price-cell"><span>NT$</span><span>${money(it.amount)}</span></div></td></tr>`;
+          const type = it.type || '演出費';
+          const label = type === '其他' ? (it.customLabel || '其他') : type;
+          const fields = ITEM_TYPES[type] || [];
+          const rate = it.unitPrice || it.hourlyWage;
+          let breakdown = rate ? `$${money(rate)}` : '';
+          if (fields.includes('qty') && it.qty && it.qty != 1) breakdown += ` × ${it.qty}人`;
+          if (fields.includes('hours') && it.hours) breakdown += ` × ${it.hours}時數`;
+          if (fields.includes('songs') && it.songs && it.songs != 1) breakdown += ` × ${it.songs}首`;
+          return `<tr><td>${label}${it.note?`（${it.note}）`:''}${breakdown?` <span style="color:#888;font-size:11px;">(${breakdown})</span>`:''}</td><td><div class="price-cell"><span>NT$</span><span>${money(it.amount)}</span></div></td></tr>`;
         }).join('')}
       </tbody>
     </table>
@@ -531,7 +561,10 @@ function renderDisbursements() {
     state.disbursements = disb; state.events = events; state.dancers = dancers;
     document.getElementById('main').innerHTML = `
       <div class="panel">
-        <div class="toolbar"><h2>撥款明細</h2><button class="primary" onclick="openDisbForm()">＋ 新增撥款</button></div>
+        <div class="toolbar"><h2>撥款明細</h2>
+          <div><button class="ghost" onclick="openBatchDisbForm()">整場活動批次登錄</button>
+          <button class="primary" onclick="openDisbForm()">＋ 新增撥款</button></div>
+        </div>
         <div class="row" style="margin-bottom:10px;">
           <div class="field" style="flex:2;"><input id="disbSearch" placeholder="搜尋活動／舞者／項目" oninput="renderDisbTable()"></div>
           <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showFinalizedDisb" style="width:auto;" onchange="renderDisbTable()"> 顯示已核定（已有發款日期）</label></div>
@@ -579,6 +612,91 @@ function applyBatchPayDate() {
   const payDate = val('batchPayDate');
   if (!ids.length || !payDate) { alert('請勾選紀錄並選擇日期'); return; }
   apiPost('batchSetPayDate', { ids, payDate }).then(() => renderDisbursements()).catch(showErr);
+}
+
+// ---------- 整場活動批次登錄 ----------
+function openBatchDisbForm() {
+  const eventOpts = state.events.map(e => `<option value="${e.eventId}">${e.name}</option>`).join('');
+  showModal(`
+    <h2>整場活動批次登錄</h2>
+    <div class="row">
+      <div class="field"><label>活動</label><select id="b_event" onchange="renderBatchRows()"><option value="">— 選擇活動 —</option>${eventOpts}</select></div>
+      <div class="field"><label>授款項目</label>
+        <select id="b_item" onchange="renderBatchRows()">
+          ${['舞蹈演出','排練費用','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div class="field"><label>發款日期（選填，可之後再核定）</label><input id="b_payDate" type="date"></div>
+      <div class="field"><label>備註（套用到全部）</label><input id="b_note"></div>
+    </div>
+    <div id="batchRowsWrap" style="margin-top:12px;max-height:50vh;overflow:auto;"></div>
+    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
+      <button class="primary" onclick="submitBatchDisb()">全部送出</button></div>
+  `);
+  renderBatchRows();
+}
+function renderBatchRows() {
+  const isRehearsal = val('b_item') === '排練費用';
+  const activeDancers = state.dancers.filter(d => d.status === '在職');
+  document.getElementById('batchRowsWrap').innerHTML = `
+    <table>
+      <thead><tr><th>舞者</th><th>抽成比例</th>${isRehearsal ? '<th>時薪</th><th>時數</th>' : '<th>原始報價</th>'}<th>實領金額</th></tr></thead>
+      <tbody>${activeDancers.map((d,i) => `
+        <tr>
+          <td>${d.name}</td>
+          <td><input type="number" step="0.01" id="br_rate_${i}" value="${d.rate}" style="width:70px;" oninput="updateBatchRowAmount(${i})"></td>
+          ${isRehearsal ? `
+            <td><input type="number" id="br_wage_${i}" style="width:80px;" oninput="updateBatchRowAmount(${i})"></td>
+            <td><input type="number" id="br_hours_${i}" style="width:70px;" oninput="updateBatchRowAmount(${i})"></td>
+          ` : `
+            <td><input type="number" id="br_quote_${i}" style="width:100px;" oninput="updateBatchRowAmount(${i})"></td>
+          `}
+          <td id="br_amt_${i}" style="font-weight:700;">$0</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+function updateBatchRowAmount(i) {
+  const isRehearsal = val('b_item') === '排練費用';
+  let amount = 0;
+  if (isRehearsal) {
+    const wage = Number(document.getElementById(`br_wage_${i}`).value) || 0;
+    const hours = Number(document.getElementById(`br_hours_${i}`).value) || 0;
+    amount = wage * hours;
+  } else {
+    const quote = Number(document.getElementById(`br_quote_${i}`).value) || 0;
+    const rate = Number(document.getElementById(`br_rate_${i}`).value) || 0;
+    amount = Math.round(quote * rate);
+  }
+  document.getElementById(`br_amt_${i}`).textContent = '$' + money(amount);
+}
+function submitBatchDisb() {
+  const eventSel = document.getElementById('b_event');
+  const eventId = val('b_event');
+  if (!eventId) { alert('請先選擇活動'); return; }
+  const eventName = eventSel.options[eventSel.selectedIndex]?.text || '';
+  const item = val('b_item');
+  const isRehearsal = item === '排練費用';
+  const payDate = val('b_payDate');
+  const note = val('b_note');
+  const activeDancers = state.dancers.filter(d => d.status === '在職');
+  const items = [];
+  activeDancers.forEach((d,i) => {
+    const rate = Number(document.getElementById(`br_rate_${i}`).value) || '';
+    if (isRehearsal) {
+      const wage = Number(document.getElementById(`br_wage_${i}`).value) || 0;
+      const hours = Number(document.getElementById(`br_hours_${i}`).value) || 0;
+      if (wage && hours) items.push({ eventId, eventName, dancer: d.name, item, rate, hourlyWage: wage, hours, payDate, note });
+    } else {
+      const quote = Number(document.getElementById(`br_quote_${i}`).value) || 0;
+      if (quote) items.push({ eventId, eventName, dancer: d.name, item, rate, originalQuote: quote, payDate, note });
+    }
+  });
+  if (!items.length) { alert('請至少填一位舞者的金額'); return; }
+  if (!confirm(`確定送出 ${items.length} 筆撥款明細？`)) return;
+  apiPost('batchSaveDisbursements', { items }).then(() => { closeModal(); renderDisbursements(); }).catch(showErr);
 }
 
 function openDisbForm(d) {
