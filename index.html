@@ -956,7 +956,7 @@ function loadRemuneration() {
         </table>
         <div class="row" style="margin-top:10px;">
           <div>匯款帳號：${g.account || '＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
-          <div>付款方式：☑匯款　□現金　□支票</div>
+          <div>付款方式：${g.account ? '☑匯款　□現金　□支票' : '□匯款　☑現金　□支票'}</div>
         </div>
         <div class="row" style="margin-top:40px;">
           <div>領款人簽名 / __________________</div>

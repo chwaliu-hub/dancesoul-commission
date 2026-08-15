@@ -76,13 +76,15 @@ const STAFF_TOKEN = 'dancesoul2026case';
 
 const state = { tab: 'events', dancers: [], events: [] };
 const ITEM_TYPES = {
-  '演出費': ['unitPrice','qty','songs'],
   '排練費用': ['hourlyWage','hours','qty'],
-  '彩排費': ['unitPrice','qty'],
-  '教室費': ['hourlyWage','hours'],
-  '編舞費': ['unitPrice'],
-  '錄音/剪輯費': ['unitPrice'],
-  '其他': ['unitPrice','qty']
+  '舞蹈演出': ['unitPrice','qty'],
+  '彩排費用': ['unitPrice','qty'],
+  '演出費': ['unitPrice','qty','songs'],
+  '盯場費用': ['unitPrice','qty'],
+  '拍攝費用': ['unitPrice','qty'],
+  '教學': ['unitPrice','qty'],
+  '助教協助': ['unitPrice','qty'],
+  '其他項目': ['unitPrice','qty']
 };
 const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數'};
 let pendingExemptTax = false;
@@ -195,7 +197,7 @@ function renderItemsList() {
         <select onchange="setItemType(${i}, this.value)">
           ${Object.keys(ITEM_TYPES).map(t=>`<option ${type===t?'selected':''}>${t}</option>`).join('')}
         </select>
-        ${type==='其他' ? `<input placeholder="項目名稱" value="${it.customLabel||''}" oninput="editingItems[${i}].customLabel=this.value">` : ''}
+        ${type==='其他項目' ? `<input placeholder="項目名稱" value="${it.customLabel||''}" oninput="editingItems[${i}].customLabel=this.value">` : ''}
         <input placeholder="備註（選填）" value="${it.note||''}" oninput="editingItems[${i}].note=this.value">
       </div>
       <div class="item-row-line2">
@@ -299,7 +301,7 @@ function printQuote(eventId) {
       <thead><tr><th>Request Payment</th><th>Price.</th></tr></thead>
       <tbody>${e.items.map(it=>{
         const type = it.type || '演出費';
-        const label = type === '其他' ? (it.customLabel || '其他') : type;
+        const label = type === '其他項目' ? (it.customLabel || '其他項目') : type;
         const fields = ITEM_TYPES[type] || [];
         const rate = it.unitPrice || it.hourlyWage;
         let breakdown = rate ? `$${money(rate)}` : '';
@@ -413,69 +415,139 @@ function submitDancer(originalName) {
   apiPost('staffSaveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
 }
 
-// ---------- 新增費用明細（只看得到還沒被老闆核定/填發款日期的紀錄）----------
+// ---------- 新增費用明細（案子為主，只看得到還沒被老闆核定/填發款日期的紀錄）----------
 let pendingDisbs = [];
+let currentPendingCase = null; // 目前展開檢視的案子名稱；null = 顯示案子清單
 function renderAddDisb() {
   Promise.all([apiGet('staffListEvents'), apiGet('staffListDancers'), apiGet('staffListPendingDisbursements')]).then(([events, dancers, pending]) => {
     state.events = events; state.dancers = dancers; pendingDisbs = pending;
-    const eventOpts = events.map(e => `<option value="${e.eventId}">${e.name}</option>`).join('');
-    const dancerOpts = dancers.filter(d => d.status === '在職').map(d => `<option value="${d.name}">${d.name}</option>`).join('');
-    document.getElementById('main').innerHTML = `
-      <div class="panel">
-        <div class="toolbar"><h2>新增費用明細</h2><button class="ghost" onclick="openBatchDisbForm()">整場活動批次登錄</button></div>
-        <div id="confirmArea"></div>
-        <div class="row">
-          <div class="field"><label>活動</label><select id="f_event"><option value="">— 選擇活動 —</option>${eventOpts}</select></div>
-          <div class="field"><label>舞者</label><select id="f_dancer" onchange="prefillRate()"><option value="">— 選擇舞者 —</option>${dancerOpts}</select></div>
-        </div>
-        <div class="row">
-          <div class="field"><label>授款項目</label>
-            <select id="f_item" onchange="toggleItemFields()">
-              ${['排練費用','舞蹈演出','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
-            </select>
-          </div>
-          <div class="field"><label>抽成比例（留空則帶入舞者預設值）</label><input id="f_rate" type="number" step="0.01"></div>
-        </div>
-        <div class="row" id="rehearsalFields">
-          <div class="field"><label>排練時薪</label><input id="f_hourlyWage" type="number"></div>
-          <div class="field"><label>排練時數</label><input id="f_hours" type="number"></div>
-        </div>
-        <div class="row" id="quoteFields">
-          <div class="field"><label>原始報價</label><input id="f_originalQuote" type="number"></div>
-        </div>
-        <div class="field"><label>備註</label><input id="f_note"></div>
-        <p style="color:var(--muted);font-size:13px;">發款日期由老闆之後在管理後台決定，這裡不用填。</p>
-        <button class="primary" onclick="submitAddDisb()">送出這筆費用明細</button>
-      </div>
-      <div class="panel">
-        <h2>待核定清單（${pending.length}）</h2>
-        <p style="color:var(--muted);font-size:13px;margin-top:-8px;">這裡只會顯示「老闆還沒填發款日期」的紀錄，方便你自己核對剛登錄的有沒有錯。一旦老闆核定填了發款日期，這筆就會從這裡消失，不能再看也不能再改。</p>
-        <table>
-          <thead><tr><th>活動</th><th>舞者</th><th>授款項目</th><th>金額</th><th>備註</th><th></th></tr></thead>
-          <tbody>${pending.map(r => `
-            <tr>
-              <td>${r.eventName}</td><td>${r.dancer}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td>
-              <td><button class="link" onclick='openEditPending(${JSON.stringify(r)})'>編輯</button>
-                  <button class="link" onclick="deletePending('${r.id}')">刪除</button></td>
-            </tr>`).join('') || '<tr><td colspan=6 class="empty">目前沒有待核定的紀錄</td></tr>'}
-          </tbody>
-        </table>
-      </div>`;
-    toggleItemFields();
+    if (currentPendingCase) renderPendingCaseDetail(currentPendingCase);
+    else renderPendingCaseList();
   }).catch(showErr);
 }
-// ---------- 整場活動批次登錄（發款日一律留空）----------
-function openBatchDisbForm() {
-  const eventOpts = state.events.map(e => `<option value="${e.eventId}">${e.name}</option>`).join('');
+function _pendingGroups() {
+  const groups = {};
+  pendingDisbs.forEach(r => {
+    const key = r.eventName || '(未命名活動)';
+    if (!groups[key]) groups[key] = { eventName: key, eventId: r.eventId || '', records: [] };
+    if (!groups[key].eventId && r.eventId) groups[key].eventId = r.eventId;
+    groups[key].records.push(r);
+  });
+  return Object.values(groups).map(g => ({
+    ...g, total: g.records.reduce((s,r)=>s+(Number(r.actualAmount)||0),0),
+    dancerCount: new Set(g.records.map(r=>r.dancer)).size
+  }));
+}
+function renderPendingCaseList() {
+  const groups = _pendingGroups().sort((a,b) => a.eventName.localeCompare(b.eventName));
+  document.getElementById('main').innerHTML = `
+    <div class="panel">
+      <div class="toolbar"><h2>新增費用明細</h2><button class="ghost" onclick="openBatchDisbForm()">整場活動批次登錄</button></div>
+      <p style="color:var(--muted);font-size:13px;">這裡只會顯示「老闆還沒填發款日期」的案子，方便你自己核對剛登錄的有沒有錯。一旦老闆核定填了發款日期，這筆就會從這裡消失，不能再看也不能再改。</p>
+      <div id="pendingCaseListWrap">${groups.map(g => `
+        <div class="panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;" onclick='openPendingCase(${JSON.stringify(g.eventName)})'>
+          <div class="toolbar" style="margin-bottom:0;">
+            <div><b>${g.eventName}</b> <span class="tag" style="margin-left:8px;">${g.dancerCount}位舞者</span> <span class="tag" style="margin-left:4px;">${g.records.length}筆</span></div>
+            <div style="font-weight:700;">$${money(g.total)}</div>
+          </div>
+        </div>`).join('') || '<div class="panel"><div class="empty">目前沒有待核定的紀錄</div></div>'}
+      </div>
+    </div>`;
+}
+function openPendingCase(eventName) {
+  currentPendingCase = eventName;
+  renderPendingCaseDetail(eventName);
+}
+function backToPendingCaseList() {
+  currentPendingCase = null;
+  renderPendingCaseList();
+}
+function renderPendingCaseDetail(eventName) {
+  const g = _pendingGroups().find(x => x.eventName === eventName);
+  if (!g) { backToPendingCaseList(); return; }
+  document.getElementById('main').innerHTML = `
+    <div class="panel">
+      <button class="link" onclick="backToPendingCaseList()">← 返回案子列表</button>
+      <h2 style="margin-top:8px;">${g.eventName}</h2>
+      <div class="row" style="margin-top:6px;">
+        <div><span class="tag">${g.dancerCount}位舞者</span> <span class="tag">${g.records.length}筆</span></div>
+        <div style="font-weight:700;margin-left:auto;">合計 $${money(g.total)}</div>
+      </div>
+      <div id="confirmArea" style="margin-top:10px;"></div>
+      <div class="toolbar" style="margin-top:10px;">
+        <div></div>
+        <button class="primary" onclick='openScopedAddForm(${JSON.stringify({eventName:g.eventName,eventId:g.eventId})})'>＋ 新增這位舞者的撥款</button>
+      </div>
+      <table style="margin-top:10px;">
+        <thead><tr><th>舞者</th><th>授款項目</th><th>金額</th><th>備註</th><th></th></tr></thead>
+        <tbody>${g.records.map(r => `
+          <tr>
+            <td>${r.dancer}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td>
+            <td><button class="link" onclick='openEditPending(${JSON.stringify(r)})'>編輯</button>
+                <button class="link" onclick="deletePending('${r.id}')">刪除</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+function openScopedAddForm(lockedCase) {
+  const dancerOpts = state.dancers.filter(d => d.status === '在職').map(d => `<option value="${d.name}">${d.name}</option>`).join('');
   showModal(`
-    <h2>整場活動批次登錄</h2>
+    <h2>新增撥款 — ${lockedCase.eventName}</h2>
+    <div class="field"><label>舞者</label><select id="s_dancer" onchange="prefillScopedRate()"><option value="">— 選擇舞者 —</option>${dancerOpts}</select></div>
     <div class="row">
-      <div class="field"><label>活動</label><select id="b_event" onchange="renderBatchRows()"><option value="">— 選擇活動 —</option>${eventOpts}</select></div>
       <div class="field"><label>授款項目</label>
-        <select id="b_item" onchange="renderBatchRows()">
-          ${['舞蹈演出','排練費用','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
+        <select id="s_item" onchange="toggleScopedItemFields()">
+          ${['排練費用','舞蹈演出','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
         </select>
       </div>
+      <div class="field"><label>抽成比例（留空則帶入舞者預設值）</label><input id="s_rate" type="number" step="0.01"></div>
+    </div>
+    <div class="row" id="s_rehearsalFields">
+      <div class="field"><label>排練時薪</label><input id="s_hourlyWage" type="number"></div>
+      <div class="field"><label>排練時數</label><input id="s_hours" type="number"></div>
+    </div>
+    <div class="row" id="s_quoteFields">
+      <div class="field"><label>原始報價</label><input id="s_originalQuote" type="number"></div>
+    </div>
+    <div class="field"><label>備註</label><input id="s_note"></div>
+    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
+      <button class="primary" onclick='submitScopedAdd(${JSON.stringify(lockedCase)})'>送出</button></div>
+  `);
+  toggleScopedItemFields();
+}
+function toggleScopedItemFields() {
+  const isRehearsal = val('s_item') === '排練費用';
+  document.getElementById('s_rehearsalFields').style.display = isRehearsal ? 'flex' : 'none';
+  document.getElementById('s_quoteFields').style.display = isRehearsal ? 'none' : 'flex';
+}
+function prefillScopedRate() {
+  const dancer = state.dancers.find(x => x.name === val('s_dancer'));
+  if (dancer && !val('s_rate')) document.getElementById('s_rate').value = dancer.rate;
+}
+function submitScopedAdd(lockedCase) {
+  if (!val('s_dancer')) { alert('請選擇舞者'); return; }
+  const payload = {
+    eventId: lockedCase.eventId, eventName: lockedCase.eventName,
+    dancer: val('s_dancer'), item: val('s_item'), rate: val('s_rate') ? Number(val('s_rate')) : '',
+    hourlyWage: Number(val('s_hourlyWage'))||'', hours: Number(val('s_hours'))||'',
+    originalQuote: Number(val('s_originalQuote'))||'', note: val('s_note')
+  };
+  apiPost('staffAddDisbursement', payload).then(() => { closeModal(); currentPendingCase = lockedCase.eventName; renderAddDisb(); }).catch(showErr);
+}
+// ---------- 整場活動批次登錄（發款日一律留空）----------
+function openBatchDisbForm(lockedCase) {
+  const eventOpts = state.events.map(e => `<option value="${e.eventId}" data-name="${e.name}">${e.name}</option>`).join('');
+  showModal(`
+    <h2>整場活動批次登錄</h2>
+    <div class="field"><label>活動</label>
+      ${lockedCase ? `<input value="${lockedCase.eventName}" disabled><input type="hidden" id="b_event" value="${lockedCase.eventId||''}"><input type="hidden" id="b_eventName" value="${lockedCase.eventName}">`
+                   : `<select id="b_event" onchange="renderBatchRows()"><option value="">— 選擇活動 —</option>${eventOpts}</select>`}
+    </div>
+    <div class="field"><label>授款項目</label>
+      <select id="b_item" onchange="renderBatchRows()">
+        ${['舞蹈演出','排練費用','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
+      </select>
     </div>
     <div class="field"><label>備註（套用到全部）</label><input id="b_note"></div>
     <div id="batchRowsWrap" style="margin-top:12px;max-height:50vh;overflow:auto;"></div>
@@ -521,10 +593,11 @@ function updateBatchRowAmount(i) {
   document.getElementById(`br_amt_${i}`).textContent = '$' + money(amount);
 }
 function submitBatchDisb() {
+  const eventNameField = document.getElementById('b_eventName');
   const eventSel = document.getElementById('b_event');
   const eventId = val('b_event');
-  if (!eventId) { alert('請先選擇活動'); return; }
-  const eventName = eventSel.options[eventSel.selectedIndex]?.text || '';
+  const eventName = eventNameField ? eventNameField.value : (eventSel.options[eventSel.selectedIndex]?.dataset.name || eventSel.options[eventSel.selectedIndex]?.text || '');
+  if (!eventName) { alert('請先選擇活動'); return; }
   const item = val('b_item');
   const isRehearsal = item === '排練費用';
   const note = val('b_note');
@@ -543,34 +616,9 @@ function submitBatchDisb() {
   });
   if (!items.length) { alert('請至少填一位舞者的金額'); return; }
   if (!confirm(`確定送出 ${items.length} 筆費用明細？`)) return;
-  apiPost('staffBatchAddDisbursements', { items }).then(() => { closeModal(); renderAddDisb(); }).catch(showErr);
+  apiPost('staffBatchAddDisbursements', { items }).then(() => { closeModal(); currentPendingCase = eventName; renderAddDisb(); }).catch(showErr);
 }
 
-function toggleItemFields() {
-  const isRehearsal = val('f_item') === '排練費用';
-  document.getElementById('rehearsalFields').style.display = isRehearsal ? 'flex' : 'none';
-  document.getElementById('quoteFields').style.display = isRehearsal ? 'none' : 'flex';
-}
-function prefillRate() {
-  const dancer = state.dancers.find(x => x.name === val('f_dancer'));
-  if (dancer && !val('f_rate')) document.getElementById('f_rate').value = dancer.rate;
-}
-function submitAddDisb() {
-  const eventSel = document.getElementById('f_event');
-  const eventName = eventSel.options[eventSel.selectedIndex]?.text || '';
-  if (!val('f_event') || !val('f_dancer')) { alert('請選擇活動和舞者'); return; }
-  const payload = {
-    eventId: val('f_event'), eventName, dancer: val('f_dancer'), item: val('f_item'),
-    rate: val('f_rate') ? Number(val('f_rate')) : '',
-    hourlyWage: Number(val('f_hourlyWage'))||'', hours: Number(val('f_hours'))||'',
-    originalQuote: Number(val('f_originalQuote'))||'', note: val('f_note')
-  };
-  apiPost('staffAddDisbursement', payload).then(res => {
-    document.getElementById('confirmArea').innerHTML = `<div class="confirm-box">已新增：${payload.dancer} / ${payload.item} — 實領金額 $${money(res.actualAmount)}</div>`;
-    ['f_rate','f_hourlyWage','f_hours','f_originalQuote','f_note'].forEach(id => document.getElementById(id).value = '');
-    renderAddDisb();
-  }).catch(showErr);
-}
 
 // ---- 編輯／刪除待核定紀錄 ----
 function openEditPending(r) {
