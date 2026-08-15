@@ -87,13 +87,15 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwI8La23JAtb2JIooIXYIln
 
 const state = { tab: 'dashboard', dancers: [], events: [], disbursements: [] };
 const ITEM_TYPES = {
-  '演出費': ['unitPrice','qty','songs'],
   '排練費用': ['hourlyWage','hours','qty'],
-  '彩排費': ['unitPrice','qty'],
-  '教室費': ['hourlyWage','hours'],
-  '編舞費': ['unitPrice'],
-  '錄音/剪輯費': ['unitPrice'],
-  '其他': ['unitPrice','qty']
+  '舞蹈演出': ['unitPrice','qty'],
+  '彩排費用': ['unitPrice','qty'],
+  '演出費': ['unitPrice','qty','songs'],
+  '盯場費用': ['unitPrice','qty'],
+  '拍攝費用': ['unitPrice','qty'],
+  '教學': ['unitPrice','qty'],
+  '助教協助': ['unitPrice','qty'],
+  '其他項目': ['unitPrice','qty']
 };
 const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數'};
 
@@ -400,7 +402,7 @@ function renderItemsList() {
         <select onchange="setItemType(${i}, this.value)">
           ${Object.keys(ITEM_TYPES).map(t=>`<option ${type===t?'selected':''}>${t}</option>`).join('')}
         </select>
-        ${type==='其他' ? `<input placeholder="項目名稱" value="${it.customLabel||''}" oninput="editingItems[${i}].customLabel=this.value">` : ''}
+        ${type==='其他項目' ? `<input placeholder="項目名稱" value="${it.customLabel||''}" oninput="editingItems[${i}].customLabel=this.value">` : ''}
         <input placeholder="備註（選填）" value="${it.note||''}" oninput="editingItems[${i}].note=this.value">
       </div>
       <div class="item-row-line2">
@@ -520,7 +522,7 @@ function printQuote(eventId) {
       <tbody>
         ${e.items.map(it=>{
           const type = it.type || '演出費';
-          const label = type === '其他' ? (it.customLabel || '其他') : type;
+          const label = type === '其他項目' ? (it.customLabel || '其他項目') : type;
           const fields = ITEM_TYPES[type] || [];
           const rate = it.unitPrice || it.hourlyWage;
           let breakdown = rate ? `$${money(rate)}` : '';
@@ -555,56 +557,116 @@ function printQuote(eventId) {
   w.document.close(); w.print();
 }
 
-// ---------- 撥款明細 ----------
+// ---------- 撥款明細（案子為主，依「活動名稱」分組——活動ID常是空的，不能拿來分組） ----------
+let currentDisbCase = null; // 目前展開檢視的案子名稱；null = 顯示案子清單
 function renderDisbursements() {
   Promise.all([apiGet('listDisbursements'), apiGet('listEvents'), apiGet('listDancers')]).then(([disb, events, dancers]) => {
     state.disbursements = disb; state.events = events; state.dancers = dancers;
-    document.getElementById('main').innerHTML = `
-      <div class="panel">
-        <div class="toolbar"><h2>撥款明細</h2>
-          <div><button class="ghost" onclick="openBatchDisbForm()">整場活動批次登錄</button>
-          <button class="primary" onclick="openDisbForm()">＋ 新增撥款</button></div>
-        </div>
-        <div class="row" style="margin-bottom:10px;">
-          <div class="field" style="flex:2;"><input id="disbSearch" placeholder="搜尋活動／舞者／項目" oninput="renderDisbTable()"></div>
-          <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showFinalizedDisb" style="width:auto;" onchange="renderDisbTable()"> 顯示已核定（已有發款日期）</label></div>
-        </div>
-        <div class="row" id="batchBar" style="display:none;align-items:center;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin-bottom:10px;">
-          <div style="flex:1;">已選 <span id="batchCount">0</span> 筆</div>
-          <div class="field" style="max-width:180px;"><input id="batchPayDate" type="date"></div>
-          <button class="primary" onclick="applyBatchPayDate()">批次填入發款日期</button>
-        </div>
-        <div id="disbTableWrap"></div>
-      </div>`;
-    renderDisbTable();
+    if (currentDisbCase) renderDisbCaseDetail(currentDisbCase);
+    else renderDisbCaseList();
   }).catch(showErr);
 }
-function renderDisbTable() {
-  const q = (document.getElementById('disbSearch')?.value || '').toLowerCase();
-  const showFinalized = document.getElementById('showFinalizedDisb')?.checked;
-  const list = state.disbursements.filter(d => {
-    if (!showFinalized && d.payDate) return false;
-    if (!q) return true;
-    return (d.eventName||'').toLowerCase().includes(q) || (d.dancer||'').toLowerCase().includes(q) || (d.item||'').toLowerCase().includes(q);
+function _disbGroups() {
+  const groups = {};
+  state.disbursements.forEach(d => {
+    const key = d.eventName || '(未命名活動)';
+    if (!groups[key]) groups[key] = { eventName: key, eventId: d.eventId || '', records: [] };
+    if (!groups[key].eventId && d.eventId) groups[key].eventId = d.eventId;
+    groups[key].records.push(d);
   });
-  document.getElementById('disbTableWrap').innerHTML = `
-    <table>
-      <thead><tr><th></th><th>發款日期</th><th>活動</th><th>舞者</th><th>授款項目</th><th>實領金額</th><th></th></tr></thead>
-      <tbody>${list.map(d => `
-        <tr>
-          <td><input type="checkbox" class="disbCheck" style="width:auto;" value="${d.id}" onchange="updateBatchBar()"></td>
-          <td>${d.payDate||''}</td><td>${d.eventName||''}</td><td>${d.dancer}</td><td>${d.item}</td>
-          <td>$${money(d.actualAmount)}</td>
-          <td><button class="link" onclick='openDisbForm(${JSON.stringify(d)})'>編輯</button>
-              <button class="link" onclick="deleteDisb('${d.id}')">刪除</button></td>
-        </tr>`).join('') || '<tr><td colspan=7 class="empty">沒有符合的紀錄</td></tr>'}
-      </tbody>
-    </table>`;
+  return Object.values(groups).map(g => {
+    const pendingCount = g.records.filter(r => !r.payDate).length;
+    const total = g.records.reduce((s,r) => s + (Number(r.actualAmount)||0), 0);
+    const dancerCount = new Set(g.records.map(r => r.dancer)).size;
+    return { ...g, pendingCount, total, dancerCount };
+  });
+}
+function renderDisbCaseList() {
+  document.getElementById('main').innerHTML = `
+    <div class="panel">
+      <div class="toolbar"><h2>撥款明細</h2><button class="primary" onclick="openBatchDisbForm()">整場活動批次登錄</button></div>
+      <div class="row" style="margin-bottom:10px;">
+        <div class="field" style="flex:2;"><input id="caseSearch" placeholder="搜尋案子名稱" oninput="renderDisbCaseListTable()"></div>
+        <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showFinalizedCases" style="width:auto;" onchange="renderDisbCaseListTable()"> 顯示已全數核定的案子</label></div>
+      </div>
+      <div id="caseListWrap"></div>
+    </div>`;
+  renderDisbCaseListTable();
+}
+function renderDisbCaseListTable() {
+  const q = (document.getElementById('caseSearch')?.value || '').toLowerCase();
+  const showFinalized = document.getElementById('showFinalizedCases')?.checked;
+  let groups = _disbGroups();
+  if (!showFinalized) groups = groups.filter(g => g.pendingCount > 0);
+  if (q) groups = groups.filter(g => g.eventName.toLowerCase().includes(q));
+  groups.sort((a,b) => b.pendingCount - a.pendingCount || a.eventName.localeCompare(b.eventName));
+  document.getElementById('caseListWrap').innerHTML = groups.map(g => `
+    <div class="panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;" onclick="openDisbCase(${JSON.stringify(g.eventName)})">
+      <div class="toolbar" style="margin-bottom:0;">
+        <div>
+          <b>${g.eventName}</b>
+          <span class="tag" style="margin-left:8px;">${g.dancerCount}位舞者</span>
+          <span class="tag" style="margin-left:4px;">共${g.records.length}筆</span>
+          ${g.pendingCount ? `<span class="tag" style="margin-left:4px;">${g.pendingCount}筆待核定</span>` : '<span class="tag" style="margin-left:4px;">全數已核定 ✓</span>'}
+        </div>
+        <div style="font-weight:700;">$${money(g.total)}</div>
+      </div>
+    </div>`).join('') || '<div class="panel"><div class="empty">沒有符合的案子</div></div>';
+}
+function openDisbCase(eventName) {
+  currentDisbCase = eventName;
+  renderDisbCaseDetail(eventName);
+}
+function backToDisbCaseList() {
+  currentDisbCase = null;
+  renderDisbCaseList();
+}
+function renderDisbCaseDetail(eventName) {
+  const groups = _disbGroups();
+  const g = groups.find(x => x.eventName === eventName);
+  if (!g) { backToDisbCaseList(); return; }
+  const paidTotal = g.records.filter(r => r.payDate).reduce((s,r)=>s+(Number(r.actualAmount)||0),0);
+  const pendingTotal = g.total - paidTotal;
+  document.getElementById('main').innerHTML = `
+    <div class="panel">
+      <button class="link" onclick="backToDisbCaseList()">← 返回案子列表</button>
+      <h2 style="margin-top:8px;">${g.eventName}</h2>
+      <div class="grid" style="margin-top:10px;">
+        <div class="stat"><div class="label">應付總額</div><div class="value">$${money(g.total)}</div></div>
+        <div class="stat"><div class="label">已核定</div><div class="value">$${money(paidTotal)}</div></div>
+        <div class="stat"><div class="label">待核定</div><div class="value">$${money(pendingTotal)}</div></div>
+        <div class="stat"><div class="label">舞者人數</div><div class="value">${g.dancerCount}</div></div>
+      </div>
+      <div class="toolbar" style="margin-top:14px;">
+        <div></div>
+        <div><button class="ghost" onclick='openBatchDisbForm(${JSON.stringify({eventName:g.eventName,eventId:g.eventId})})'>整場批次登錄</button>
+        <button class="primary" onclick='openDisbForm(null, ${JSON.stringify({eventName:g.eventName,eventId:g.eventId})})'>＋ 新增這位舞者的撥款</button></div>
+      </div>
+      <div class="row" id="batchBar" style="display:none;align-items:center;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin:10px 0;">
+        <div style="flex:1;">已選 <span id="batchCount">0</span> 筆</div>
+        <div class="field" style="max-width:180px;"><input id="batchPayDate" type="date"></div>
+        <button class="primary" onclick="applyBatchPayDate()">批次填入發款日期</button>
+      </div>
+      <table>
+        <thead><tr><th></th><th>舞者</th><th>授款項目</th><th>實領金額</th><th>狀態</th><th></th></tr></thead>
+        <tbody>${g.records.map(d => `
+          <tr>
+            <td><input type="checkbox" class="disbCheck" style="width:auto;" value="${d.id}" onchange="updateBatchBar()"></td>
+            <td>${d.dancer}</td><td>${d.item}</td><td>$${money(d.actualAmount)}</td>
+            <td>${d.payDate ? `<span class="tag">已核定 ${d.payDate}</span>` : '<span class="tag">待核定</span>'}</td>
+            <td><button class="link" onclick='openDisbForm(${JSON.stringify(d)}, ${JSON.stringify({eventName:g.eventName,eventId:g.eventId})})'>編輯</button>
+                <button class="link" onclick="deleteDisb('${d.id}')">刪除</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
   updateBatchBar();
 }
 function updateBatchBar() {
   const checked = document.querySelectorAll('.disbCheck:checked');
-  document.getElementById('batchBar').style.display = checked.length ? 'flex' : 'none';
+  const bar = document.getElementById('batchBar');
+  if (!bar) return;
+  bar.style.display = checked.length ? 'flex' : 'none';
   document.getElementById('batchCount').textContent = checked.length;
 }
 function applyBatchPayDate() {
@@ -613,14 +675,21 @@ function applyBatchPayDate() {
   if (!ids.length || !payDate) { alert('請勾選紀錄並選擇日期'); return; }
   apiPost('batchSetPayDate', { ids, payDate }).then(() => renderDisbursements()).catch(showErr);
 }
+function deleteDisb(id) {
+  if (!confirm('確定刪除這筆撥款紀錄？')) return;
+  apiPost('deleteDisbursement', { id }).then(renderDisbursements).catch(showErr);
+}
 
 // ---------- 整場活動批次登錄 ----------
-function openBatchDisbForm() {
-  const eventOpts = state.events.map(e => `<option value="${e.eventId}">${e.name}</option>`).join('');
+function openBatchDisbForm(lockedCase) {
+  const eventOpts = state.events.map(e => `<option value="${e.eventId}" data-name="${e.name}">${e.name}</option>`).join('');
   showModal(`
     <h2>整場活動批次登錄</h2>
     <div class="row">
-      <div class="field"><label>活動</label><select id="b_event" onchange="renderBatchRows()"><option value="">— 選擇活動 —</option>${eventOpts}</select></div>
+      <div class="field"><label>活動</label>
+        ${lockedCase ? `<input value="${lockedCase.eventName}" disabled><input type="hidden" id="b_event" value="${lockedCase.eventId||''}"><input type="hidden" id="b_eventName" value="${lockedCase.eventName}">`
+                     : `<select id="b_event" onchange="renderBatchRows()"><option value="">— 選擇活動 —</option>${eventOpts}</select>`}
+      </div>
       <div class="field"><label>授款項目</label>
         <select id="b_item" onchange="renderBatchRows()">
           ${['舞蹈演出','排練費用','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
@@ -673,10 +742,11 @@ function updateBatchRowAmount(i) {
   document.getElementById(`br_amt_${i}`).textContent = '$' + money(amount);
 }
 function submitBatchDisb() {
-  const eventSel = document.getElementById('b_event');
   const eventId = val('b_event');
-  if (!eventId) { alert('請先選擇活動'); return; }
-  const eventName = eventSel.options[eventSel.selectedIndex]?.text || '';
+  const eventNameField = document.getElementById('b_eventName');
+  const eventSel = document.getElementById('b_event');
+  const eventName = eventNameField ? eventNameField.value : (eventSel.options[eventSel.selectedIndex]?.dataset.name || eventSel.options[eventSel.selectedIndex]?.text || '');
+  if (!eventName) { alert('請先選擇活動'); return; }
   const item = val('b_item');
   const isRehearsal = item === '排練費用';
   const payDate = val('b_payDate');
@@ -696,18 +766,23 @@ function submitBatchDisb() {
   });
   if (!items.length) { alert('請至少填一位舞者的金額'); return; }
   if (!confirm(`確定送出 ${items.length} 筆撥款明細？`)) return;
-  apiPost('batchSaveDisbursements', { items }).then(() => { closeModal(); renderDisbursements(); }).catch(showErr);
+  apiPost('batchSaveDisbursements', { items }).then(() => { closeModal(); currentDisbCase = eventName; renderDisbursements(); }).catch(showErr);
 }
 
-function openDisbForm(d) {
+function openDisbForm(d, lockedCase) {
   d = d || {};
   const eventOpts = state.events.map(e => `<option value="${e.eventId}" ${d.eventId===e.eventId?'selected':''}>${e.name}</option>`).join('');
   const dancerOpts = state.dancers.filter(x => x.status === '在職' || x.name === d.dancer)
     .map(x => `<option value="${x.name}" ${d.dancer===x.name?'selected':''}>${x.name}${x.status!=='在職'?`（${x.status}）`:''}</option>`).join('');
+  const caseName = lockedCase ? lockedCase.eventName : (d.eventName || '');
+  const caseId = lockedCase ? (lockedCase.eventId || '') : (d.eventId || '');
   showModal(`
     <h2>${d.id ? '編輯撥款' : '新增撥款'}</h2>
     <div class="row">
-      <div class="field"><label>活動</label><select id="f_event"><option value="">— 選擇活動 —</option>${eventOpts}</select></div>
+      <div class="field"><label>活動</label>
+        ${lockedCase ? `<input value="${caseName}" disabled><input type="hidden" id="f_event" value="${caseId}"><input type="hidden" id="f_eventName" value="${caseName}">`
+                     : `<select id="f_event"><option value="">— 選擇活動 —</option>${eventOpts}</select>`}
+      </div>
       <div class="field"><label>舞者</label><select id="f_dancer" onchange="prefillRate()"><option value="">— 選擇舞者 —</option>${dancerOpts}</select></div>
     </div>
     <div class="row">
@@ -732,7 +807,7 @@ function openDisbForm(d) {
     <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
       <button class="primary" onclick='submitDisb(${JSON.stringify(d.id||'')})'>儲存（自動計算實領金額）</button></div>
   `);
-  document.getElementById('f_event').value = d.eventId || '';
+  if (!lockedCase) document.getElementById('f_event').value = d.eventId || '';
   toggleItemFields();
 }
 function toggleItemFields() {
@@ -745,8 +820,9 @@ function prefillRate() {
   if (dancer && !val('f_rate')) document.getElementById('f_rate').value = dancer.rate;
 }
 function submitDisb(id) {
+  const eventNameField = document.getElementById('f_eventName');
   const eventSel = document.getElementById('f_event');
-  const eventName = eventSel.options[eventSel.selectedIndex]?.text || '';
+  const eventName = eventNameField ? eventNameField.value : (eventSel.options[eventSel.selectedIndex]?.text || '');
   const payload = {
     id: id || undefined,
     eventId: val('f_event'), eventName,
@@ -754,11 +830,7 @@ function submitDisb(id) {
     hourlyWage: Number(val('f_hourlyWage'))||'', hours: Number(val('f_hours'))||'',
     originalQuote: Number(val('f_originalQuote'))||'', payDate: val('f_payDate'), note: val('f_note')
   };
-  apiPost('saveDisbursement', payload).then(() => { closeModal(); renderDisbursements(); }).catch(showErr);
-}
-function deleteDisb(id) {
-  if (!confirm('確定刪除這筆撥款紀錄？')) return;
-  apiPost('deleteDisbursement', { id }).then(renderDisbursements).catch(showErr);
+  apiPost('saveDisbursement', payload).then(() => { closeModal(); if (eventName) currentDisbCase = eventName; renderDisbursements(); }).catch(showErr);
 }
 
 // ---------- 簽收單 ----------
