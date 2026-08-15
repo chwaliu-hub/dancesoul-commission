@@ -48,6 +48,13 @@
   .empty{color:var(--muted);text-align:center;padding:30px 0;}
   .tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;background:var(--accent-soft);}
   .item-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .item-row-v2{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;background:#fff;}
+  .item-row-line1{display:flex;gap:8px;margin-bottom:8px;}
+  .item-row-line1 input{flex:1;}
+  .item-row-line2{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .item-row-line2 select{flex:1;min-width:120px;}
+  .item-row-line2 input{flex:1;min-width:80px;}
+  .item-row-amt{min-width:90px;text-align:right;font-weight:700;margin-left:auto;}
   .item-row input{flex:1;}
   .modal-bg{position:fixed;inset:0;background:rgba(46,42,36,.4);display:none;align-items:center;justify-content:center;z-index:50;}
   .modal-bg.open{display:flex;}
@@ -374,24 +381,28 @@ function renderItemsList() {
   document.getElementById('itemsList').innerHTML = editingItems.map((it,i) => {
     const mode = it.mode || 'qty';
     return `
-    <div class="item-row" style="flex-wrap:wrap;">
-      <input placeholder="項目說明（例如：演出費／排練費用）" value="${it.label||''}" oninput="editingItems[${i}].label=this.value" style="flex:1.2;">
-      <input placeholder="備註（選填）" value="${it.note||''}" style="max-width:130px;" oninput="editingItems[${i}].note=this.value">
-      <select style="max-width:110px;" onchange="setItemMode(${i}, this.value)">
-        <option value="qty" ${mode==='qty'?'selected':''}>單價×人數</option>
-        <option value="hourly" ${mode==='hourly'?'selected':''}>時薪×時數</option>
-      </select>
-      ${mode==='hourly' ? `
-        <input placeholder="時薪" type="number" style="max-width:100px;" value="${it.hourlyWage ?? ''}" oninput="updateItemAmount(${i}, 'hourlyWage', this.value)">
-        <span style="color:var(--muted);">×</span>
-        <input placeholder="時數" type="number" style="max-width:80px;" value="${it.hours ?? ''}" oninput="updateItemAmount(${i}, 'hours', this.value)">
-      ` : `
-        <input placeholder="單價" type="number" style="max-width:100px;" value="${it.unitPrice ?? ''}" oninput="updateItemAmount(${i}, 'unitPrice', this.value)">
-        <span style="color:var(--muted);">×</span>
-        <input placeholder="人數" type="number" style="max-width:80px;" value="${it.qty ?? 1}" oninput="updateItemAmount(${i}, 'qty', this.value)">
-      `}
-      <span id="itemAmt_${i}" style="min-width:90px;text-align:right;font-weight:700;">$${money(it.amount||0)}</span>
-      <button class="link" onclick="removeItemRow(${i})">✕</button>
+    <div class="item-row-v2">
+      <div class="item-row-line1">
+        <input placeholder="項目說明（例如：演出費／排練費用）" value="${it.label||''}" oninput="editingItems[${i}].label=this.value">
+        <input placeholder="備註（選填，例如：第2~3首）" value="${it.note||''}" oninput="editingItems[${i}].note=this.value">
+      </div>
+      <div class="item-row-line2">
+        <select onchange="setItemMode(${i}, this.value)">
+          <option value="qty" ${mode==='qty'?'selected':''}>單價×人數</option>
+          <option value="hourly" ${mode==='hourly'?'selected':''}>時薪×時數</option>
+        </select>
+        ${mode==='hourly' ? `
+          <input placeholder="時薪" type="number" value="${it.hourlyWage ?? ''}" oninput="updateItemAmount(${i}, 'hourlyWage', this.value)">
+          <span style="color:var(--muted);">×</span>
+          <input placeholder="時數" type="number" value="${it.hours ?? ''}" oninput="updateItemAmount(${i}, 'hours', this.value)">
+        ` : `
+          <input placeholder="單價" type="number" value="${it.unitPrice ?? ''}" oninput="updateItemAmount(${i}, 'unitPrice', this.value)">
+          <span style="color:var(--muted);">×</span>
+          <input placeholder="人數" type="number" value="${it.qty ?? 1}" oninput="updateItemAmount(${i}, 'qty', this.value)">
+        `}
+        <span id="itemAmt_${i}" class="item-row-amt">$${money(it.amount||0)}</span>
+        <button class="link" onclick="removeItemRow(${i})">✕ 刪除</button>
+      </div>
     </div>`;
   }).join('');
 }
