@@ -609,9 +609,29 @@ function renderDisbCaseListTable() {
           <span class="tag" style="margin-left:4px;">共${g.records.length}筆</span>
           ${g.pendingCount ? `<span class="tag" style="margin-left:4px;">${g.pendingCount}筆待核定</span>` : '<span class="tag" style="margin-left:4px;">全數已核定 ✓</span>'}
         </div>
-        <div style="font-weight:700;">$${money(g.total)}</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-weight:700;">$${money(g.total)}</div>
+          ${g.pendingCount ? `<button class="ghost" onclick='event.stopPropagation();quickFinalizeCase(${JSON.stringify(g.eventName)})'>核定整個案子</button>` : ''}
+        </div>
       </div>
     </div>`).join('') || '<div class="panel"><div class="empty">沒有符合的案子</div></div>';
+}
+function quickFinalizeCase(eventName) {
+  showModal(`
+    <h2>核定整個案子</h2>
+    <p style="color:var(--muted);">確認「${eventName}」這場的所有待核定紀錄，金額都已核對無誤。</p>
+    <div class="field"><label>發款日期</label><input id="qf_payDate" type="date"></div>
+    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
+      <button class="primary" onclick='confirmQuickFinalize(${JSON.stringify(eventName)})'>核定並填入發款日期</button></div>
+  `);
+}
+function confirmQuickFinalize(eventName) {
+  const payDate = val('qf_payDate');
+  if (!payDate) { alert('請選擇發款日期'); return; }
+  const g = _disbGroups().find(x => x.eventName === eventName);
+  if (!g) { closeModal(); return; }
+  const ids = g.records.filter(r => !r.payDate).map(r => r.id);
+  apiPost('batchSetPayDate', { ids, payDate }).then(() => { closeModal(); renderDisbursements(); }).catch(showErr);
 }
 function openDisbCase(eventName) {
   currentDisbCase = eventName;
@@ -648,7 +668,7 @@ function renderDisbCaseDetail(eventName) {
         <button class="primary" onclick="applyBatchPayDate()">批次填入發款日期</button>
       </div>
       <table>
-        <thead><tr><th></th><th>舞者</th><th>授款項目</th><th>實領金額</th><th>狀態</th><th></th></tr></thead>
+        <thead><tr><th><input type="checkbox" id="disbSelectAll" style="width:auto;" onchange="toggleSelectAllDisb(this.checked)"></th><th>舞者</th><th>授款項目</th><th>實領金額</th><th>狀態</th><th></th></tr></thead>
         <tbody>${g.records.map(d => `
           <tr>
             <td><input type="checkbox" class="disbCheck" style="width:auto;" value="${d.id}" onchange="updateBatchBar()"></td>
@@ -660,6 +680,10 @@ function renderDisbCaseDetail(eventName) {
         </tbody>
       </table>
     </div>`;
+  updateBatchBar();
+}
+function toggleSelectAllDisb(checked) {
+  document.querySelectorAll('.disbCheck').forEach(c => c.checked = checked);
   updateBatchBar();
 }
 function updateBatchBar() {
