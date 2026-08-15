@@ -137,7 +137,7 @@ function renderEvents() {
 let editingItems = [];
 function openEventForm(e) {
   e = e || {};
-  editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)) : [{label:'',note:'',mode:'qty',unitPrice:'',qty:1,hourlyWage:'',hours:'',amount:0}];
+  editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)) : [{label:'',note:'',unitPrice:'',qty:1,extraQty:'',extraLabel:'',amount:0}];
   showModal(`
     <h2>${e.eventId ? '編輯活動' : '新增活動'}</h2>
     <div class="row">
@@ -150,7 +150,7 @@ function openEventForm(e) {
         <select id="f_status">${['報價中','已確認','已結案'].map(s=>`<option ${e.status===s?'selected':''}>${s}</option>`).join('')}</select>
       </div>
     </div>
-    <label>報價項目（單價×人數 或 時薪×時數，金額自動算）</label>
+    <label>報價項目（單價 × 人數 × 加乘數量，金額會自動算，也可以直接改金額覆蓋）</label>
     <div id="itemsList"></div>
     <button class="ghost" onclick="addItemRow()">＋ 新增項目</button>
     <div class="row" style="margin-top:12px;">
@@ -174,50 +174,34 @@ function toggleOverseasFields() {
 }
 function renderItemsList() {
   document.getElementById('itemsList').innerHTML = editingItems.map((it,i) => {
-    const mode = it.mode || 'qty';
     return `
     <div class="item-row-v2">
       <div class="item-row-line1">
-        <input placeholder="項目說明（例如：演出費／排練費用）" value="${it.label||''}" oninput="editingItems[${i}].label=this.value">
+        <input placeholder="項目說明（例如：演出費／排練費）" value="${it.label||''}" oninput="editingItems[${i}].label=this.value">
         <input placeholder="備註（選填）" value="${it.note||''}" oninput="editingItems[${i}].note=this.value">
       </div>
       <div class="item-row-line2">
-        <select onchange="setItemMode(${i}, this.value)">
-          <option value="qty" ${mode==='qty'?'selected':''}>單價×人數</option>
-          <option value="hourly" ${mode==='hourly'?'selected':''}>時薪×時數</option>
-        </select>
-        ${mode==='hourly' ? `
-          <input placeholder="時薪" type="number" value="${it.hourlyWage ?? ''}" oninput="updateItemAmount(${i}, 'hourlyWage', this.value)">
-          <span style="color:var(--muted);">×</span>
-          <input placeholder="時數" type="number" value="${it.hours ?? ''}" oninput="updateItemAmount(${i}, 'hours', this.value)">
-        ` : `
-          <input placeholder="單價" type="number" value="${it.unitPrice ?? ''}" oninput="updateItemAmount(${i}, 'unitPrice', this.value)">
-          <span style="color:var(--muted);">×</span>
-          <input placeholder="人數" type="number" value="${it.qty ?? 1}" oninput="updateItemAmount(${i}, 'qty', this.value)">
-        `}
-        <span id="itemAmt_${i}" class="item-row-amt">$${money(it.amount||0)}</span>
+        <input placeholder="單價" type="number" value="${it.unitPrice ?? ''}" oninput="updateItemAmount(${i}, 'unitPrice', this.value)">
+        <span style="color:var(--muted);">×</span>
+        <input placeholder="人數" type="number" value="${it.qty ?? 1}" oninput="updateItemAmount(${i}, 'qty', this.value)">
+        <span style="color:var(--muted);">×</span>
+        <input placeholder="加乘(選填)" type="number" value="${it.extraQty ?? ''}" oninput="updateItemAmount(${i}, 'extraQty', this.value)">
+        <input placeholder="單位(如hr/首)" value="${it.extraLabel ?? ''}" style="max-width:100px;" oninput="editingItems[${i}].extraLabel=this.value">
+        <span style="color:var(--muted);">=</span>
+        <input placeholder="金額" type="number" id="itemAmt_${i}" value="${it.amount||0}" style="font-weight:700;" oninput="editingItems[${i}].amount=Number(this.value)||0">
         <button class="link" onclick="removeItemRow(${i})">✕ 刪除</button>
       </div>
     </div>`;
   }).join('');
 }
-function setItemMode(i, mode) {
-  editingItems[i].mode = mode;
-  editingItems[i].amount = mode === 'hourly'
-    ? (Number(editingItems[i].hourlyWage)||0) * (Number(editingItems[i].hours)||0)
-    : (Number(editingItems[i].unitPrice)||0) * (Number(editingItems[i].qty)||0);
-  renderItemsList();
-}
 function updateItemAmount(i, field, value) {
   editingItems[i][field] = value;
   const it = editingItems[i];
-  it.amount = (it.mode === 'hourly')
-    ? (Number(it.hourlyWage) || 0) * (Number(it.hours) || 0)
-    : (Number(it.unitPrice) || 0) * (Number(it.qty) || 0);
+  it.amount = (Number(it.unitPrice) || 0) * (Number(it.qty) || 1) * (Number(it.extraQty) || 1);
   const el = document.getElementById(`itemAmt_${i}`);
-  if (el) el.textContent = '$' + money(it.amount);
+  if (el) el.value = it.amount;
 }
-function addItemRow(){ editingItems.push({label:'',note:'',mode:'qty',unitPrice:'',qty:1,hourlyWage:'',hours:'',amount:0}); renderItemsList(); }
+function addItemRow(){ editingItems.push({label:'',note:'',unitPrice:'',qty:1,extraQty:'',extraLabel:'',amount:0}); renderItemsList(); }
 function removeItemRow(i){ editingItems.splice(i,1); renderItemsList(); }
 function submitEvent(eventId) {
   const payload = {
@@ -285,7 +269,15 @@ function printQuote(eventId) {
     <table>
       <colgroup><col class="label"><col class="price"></colgroup>
       <thead><tr><th>Request Payment</th><th>Price.</th></tr></thead>
-      <tbody>${e.items.map(it=>`<tr><td>${it.label}${it.note?`（${it.note}）`:''}${(it.mode==='hourly'&&it.hourlyWage&&it.hours)?` <span style="color:#888;font-size:11px;">($${money(it.hourlyWage)}/hr × ${it.hours}hr)</span>`:(it.unitPrice&&it.qty)?` <span style="color:#888;font-size:11px;">($${money(it.unitPrice)} × ${it.qty}人)</span>`:''}</td><td><div class="price-cell"><span>NT$</span><span>${money(it.amount)}</span></div></td></tr>`).join('')}</tbody>
+      <tbody>${e.items.map(it=>{
+        let breakdown = '';
+        if (it.unitPrice) {
+          breakdown = `$${money(it.unitPrice)}`;
+          if (it.qty && it.qty != 1) breakdown += ` × ${it.qty}人`;
+          if (it.extraQty) breakdown += ` × ${it.extraQty}${it.extraLabel||''}`;
+        }
+        return `<tr><td>${it.label}${it.note?`（${it.note}）`:''}${breakdown?` <span style="color:#888;font-size:11px;">(${breakdown})</span>`:''}</td><td><div class="price-cell"><span>NT$</span><span>${money(it.amount)}</span></div></td></tr>`;
+      }).join('')}</tbody>
     </table>
     <table class="sumtable">
       <tr><td class="slabel" style="width:70%;">Subtotal</td><td class="sprice"><div class="price-cell"><span>NT$</span><span>${money(e.subtotal)}</span></div></td></tr>
