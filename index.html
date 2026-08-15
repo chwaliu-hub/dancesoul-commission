@@ -308,11 +308,13 @@ function quickToggleEvent(eventId, field, value) {
   const e = state.events.find(x => x.eventId === eventId);
   if (!e) return;
   e[field] = value;
+  if (field === 'paidByClient' && value && !e.paidDate) e.paidDate = new Date().toISOString().slice(0,10);
   apiPost('saveEvent', {
     eventId: e.eventId, name: e.name, date: e.date, client: e.client, status: e.status,
     items: e.items, discount: e.discount, taxRate: e.subtotal ? (e.tax / (e.subtotal - e.discount) || 0) : 0,
     isOverseas: e.isOverseas, invoiceNo: e.invoiceNo, rmbAmount: e.rmbAmount,
-    paidByClient: e.paidByClient, commissionPaid: e.commissionPaid
+    paidByClient: e.paidByClient, commissionPaid: e.commissionPaid,
+    paidDate: e.paidDate || '', paidMethod: e.paidMethod || ''
   }).then(() => renderEventsTable()).catch(showErr);
 }
 
@@ -347,8 +349,14 @@ function openEventForm(e) {
       <div class="field"><label>換算人民幣金額</label><input id="f_rmbAmount" type="number" value="${e.rmbAmount||''}"></div>
     </div>
     <div class="row" style="margin-top:8px;">
-      <div class="field"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_paidByClient" style="width:auto;" ${e.paidByClient?'checked':''}> 已收款</label></div>
+      <div class="field"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_paidByClient" style="width:auto;" ${e.paidByClient?'checked':''} onchange="togglePaidFields()"> 已收款</label></div>
       <div class="field"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_commissionPaid" style="width:auto;" ${e.commissionPaid?'checked':''}> 已付抽成</label></div>
+    </div>
+    <div class="row" id="paidFields" style="display:${e.paidByClient?'flex':'none'};margin-top:8px;">
+      <div class="field"><label>收款日期</label><input id="f_paidDate" type="date" value="${e.paidDate||''}"></div>
+      <div class="field"><label>收款方式</label>
+        <select id="f_paidMethod">${['匯款','現金','支票'].map(m=>`<option ${e.paidMethod===m?'selected':''}>${m}</option>`).join('')}</select>
+      </div>
     </div>
     <p style="color:var(--muted);font-size:13px;">兩個都勾選後，這場活動會從主列表自動收起來（列表上方「顯示已封存」可以再叫出來）。</p>
     <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
@@ -358,6 +366,9 @@ function openEventForm(e) {
 }
 function toggleOverseasFields() {
   document.getElementById('overseasFields').style.display = document.getElementById('f_isOverseas').checked ? 'flex' : 'none';
+}
+function togglePaidFields() {
+  document.getElementById('paidFields').style.display = document.getElementById('f_paidByClient').checked ? 'flex' : 'none';
 }
 function renderItemsList() {
   document.getElementById('itemsList').innerHTML = editingItems.map((it,i) => `
@@ -389,7 +400,9 @@ function submitEvent(eventId) {
     isOverseas: document.getElementById('f_isOverseas').checked,
     invoiceNo: val('f_invoiceNo'), rmbAmount: val('f_rmbAmount') ? Number(val('f_rmbAmount')) : '',
     paidByClient: document.getElementById('f_paidByClient').checked,
-    commissionPaid: document.getElementById('f_commissionPaid').checked
+    commissionPaid: document.getElementById('f_commissionPaid').checked,
+    paidDate: document.getElementById('f_paidByClient').checked ? val('f_paidDate') : '',
+    paidMethod: document.getElementById('f_paidByClient').checked ? val('f_paidMethod') : ''
   };
   apiPost('saveEvent', payload).then(() => { closeModal(); renderEvents(); }).catch(showErr);
 }
