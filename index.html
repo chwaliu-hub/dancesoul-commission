@@ -788,6 +788,7 @@ function loadSigning() {
         <div class="doc-logo">DANCE SOUL</div>
         <div class="doc-tagline">THE PROFESSIONAL DANCE STUDIO</div>
         <h2>舞者老師CASE費簽收單 — ${g.dancer}（${g.month}）</h2>
+        <div class="meta-row">匯款帳號：${g.account || '＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
         <table>
           <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
           <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
