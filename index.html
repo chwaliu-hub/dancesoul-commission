@@ -601,7 +601,7 @@ function renderDisbCaseListTable() {
   if (q) groups = groups.filter(g => g.eventName.toLowerCase().includes(q));
   groups.sort((a,b) => b.pendingCount - a.pendingCount || a.eventName.localeCompare(b.eventName));
   document.getElementById('caseListWrap').innerHTML = groups.map(g => `
-    <div class="panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;" onclick="openDisbCase(${JSON.stringify(g.eventName)})">
+    <div class="panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;" onclick='openDisbCase(${JSON.stringify(g.eventName)})'>
       <div class="toolbar" style="margin-bottom:0;">
         <div>
           <b>${g.eventName}</b>
