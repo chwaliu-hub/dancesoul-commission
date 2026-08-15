@@ -579,28 +579,63 @@ function renderDisbursements() {
     renderDisbTable();
   }).catch(showErr);
 }
+let expandedEventIds = new Set();
 function renderDisbTable() {
   const q = (document.getElementById('disbSearch')?.value || '').toLowerCase();
   const showFinalized = document.getElementById('showFinalizedDisb')?.checked;
-  const list = state.disbursements.filter(d => {
-    if (!showFinalized && d.payDate) return false;
-    if (!q) return true;
-    return (d.eventName||'').toLowerCase().includes(q) || (d.dancer||'').toLowerCase().includes(q) || (d.item||'').toLowerCase().includes(q);
+
+  // 依活動分組
+  const groups = {};
+  state.disbursements.forEach(d => {
+    const key = d.eventId || '(未指定活動)';
+    if (!groups[key]) groups[key] = { eventId: d.eventId, eventName: d.eventName || '(未指定活動)', records: [] };
+    groups[key].records.push(d);
   });
-  document.getElementById('disbTableWrap').innerHTML = `
-    <table>
-      <thead><tr><th></th><th>發款日期</th><th>活動</th><th>舞者</th><th>授款項目</th><th>實領金額</th><th></th></tr></thead>
-      <tbody>${list.map(d => `
-        <tr>
-          <td><input type="checkbox" class="disbCheck" style="width:auto;" value="${d.id}" onchange="updateBatchBar()"></td>
-          <td>${d.payDate||''}</td><td>${d.eventName||''}</td><td>${d.dancer}</td><td>${d.item}</td>
-          <td>$${money(d.actualAmount)}</td>
-          <td><button class="link" onclick='openDisbForm(${JSON.stringify(d)})'>編輯</button>
-              <button class="link" onclick="deleteDisb('${d.id}')">刪除</button></td>
-        </tr>`).join('') || '<tr><td colspan=7 class="empty">沒有符合的紀錄</td></tr>'}
-      </tbody>
-    </table>`;
+  let groupList = Object.values(groups).map(g => {
+    const pendingCount = g.records.filter(r => !r.payDate).length;
+    const total = g.records.reduce((s,r) => s + (Number(r.actualAmount)||0), 0);
+    return { ...g, pendingCount, total };
+  });
+  if (q) groupList = groupList.filter(g => g.eventName.toLowerCase().includes(q) ||
+    g.records.some(r => (r.dancer||'').toLowerCase().includes(q) || (r.item||'').toLowerCase().includes(q)));
+  groupList.sort((a,b) => b.pendingCount - a.pendingCount || a.eventName.localeCompare(b.eventName));
+
+  document.getElementById('disbTableWrap').innerHTML = groupList.map(g => {
+    const expanded = expandedEventIds.has(g.eventId);
+    let records = g.records;
+    if (!showFinalized) records = records.filter(r => !r.payDate);
+    if (q) records = records.filter(r => (r.dancer||'').toLowerCase().includes(q) || (r.item||'').toLowerCase().includes(q) || g.eventName.toLowerCase().includes(q));
+    return `
+    <div class="panel" style="margin-bottom:10px;padding:14px 16px;">
+      <div class="toolbar" style="margin-bottom:0;cursor:pointer;" onclick="toggleDisbGroup('${g.eventId}')">
+        <div>
+          <b>${g.eventName}</b>
+          <span class="tag" style="margin-left:8px;">共${g.records.length}筆</span>
+          ${g.pendingCount ? `<span class="tag" style="margin-left:4px;">${g.pendingCount}筆待核定</span>` : ''}
+        </div>
+        <div style="font-weight:700;">$${money(g.total)}　<span style="color:var(--muted);">${expanded?'收合 ▲':'展開 ▼'}</span></div>
+      </div>
+      ${expanded ? `
+        <table style="margin-top:12px;">
+          <thead><tr><th></th><th>發款日期</th><th>舞者</th><th>授款項目</th><th>實領金額</th><th></th></tr></thead>
+          <tbody>${records.map(d => `
+            <tr>
+              <td><input type="checkbox" class="disbCheck" style="width:auto;" value="${d.id}" onchange="updateBatchBar()"></td>
+              <td>${d.payDate||''}</td><td>${d.dancer}</td><td>${d.item}</td>
+              <td>$${money(d.actualAmount)}</td>
+              <td><button class="link" onclick='openDisbForm(${JSON.stringify(d)})'>編輯</button>
+                  <button class="link" onclick="deleteDisb('${d.id}')">刪除</button></td>
+            </tr>`).join('') || '<tr><td colspan=6 class="empty">沒有符合的紀錄</td></tr>'}
+          </tbody>
+        </table>` : ''}
+    </div>`;
+  }).join('') || '<div class="panel"><div class="empty">沒有符合的活動</div></div>';
   updateBatchBar();
+}
+function toggleDisbGroup(eventId) {
+  if (expandedEventIds.has(eventId)) expandedEventIds.delete(eventId);
+  else expandedEventIds.add(eventId);
+  renderDisbTable();
 }
 function updateBatchBar() {
   const checked = document.querySelectorAll('.disbCheck:checked');
