@@ -1040,12 +1040,11 @@ function downloadNhiExport(year) {
     const startMonth = _toRocMonth(`${year}-01`), endMonth = _toRocMonth(`${year}-12`);
     const grossTotal = rows.reduce((s,r)=>s+r.gross,0);
     const nhiTotal = rows.reduce((s,r)=>s+r.nhi,0);
-    const header = ['1','70541606','65',startMonth,endMonth,rows.length,grossTotal,nhiTotal,'靈動力肢體開發有限公司',phone,email,contact];
-    const detailRows = rows.map((r,i) => {
-      // 同一人同月只會有一列（我們已經先合併過），申報編號固定填1
-      return ['2','I',_toRocDate(r.payDate),r.idNumber,r.realName||r.dancer,r.gross,r.nhi,'1','',''];
-    });
-    const csv = [header, ...detailRows].map(row => row.join(',')).join('\r\n');
+    const unitLabel = '*資料識別碼,統一編號,所得類別,給付起始年月,給付結束年月,申報總筆數,所得(收入)給付總額,扣繳補充保險費總額,扣費義務人名稱,聯絡電話,電子郵件信箱,聯絡人姓名';
+    const unitRow = ['1','70541606','65',startMonth,endMonth,rows.length,grossTotal,nhiTotal,'靈動力肢體開發有限公司',phone,email,contact].join(',');
+    const detailLabel = '*資料識別碼,處理方式(新增I  覆蓋R),給付日期,所得人身分證號,所得人姓名,單次給付金額,扣繳補充保險費金額,申報編號(詳格式說明),信託註記,資料註記,所得所屬年度,';
+    const detailRows = rows.map(r => ['2','I',_toRocDate(r.payDate),r.idNumber,r.realName||r.dancer,r.gross,r.nhi,'1','','','',''].join(','));
+    const csv = [unitLabel, unitRow, detailLabel, ...detailRows].join('\r\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
