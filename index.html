@@ -983,6 +983,7 @@ function renderAnnual() {
         <div class="field"><label>年度</label><input id="annualYear" type="number" value="${currentYear}"></div>
         <div class="field" style="align-self:end;"><button class="primary" onclick="loadAnnual()">產生年度總表</button></div>
         <div class="field" style="align-self:end;"><button class="ghost" onclick="exportAnnualCsv()">匯出CSV</button></div>
+        <div class="field" style="align-self:end;"><button class="ghost" onclick="openNhiExportForm()">產生二代健保申報檔</button></div>
       </div>
       <p style="color:var(--muted);font-size:13px;">這裡是用「全年給付總額」重新算一次扣繳稅額/二代健保，供年度彙整參考；正式申報請以每月實際扣繳金額加總為準，有落差建議跟記帳士核對。</p>
     </div>
@@ -1007,6 +1008,52 @@ function exportAnnualCsv() {
   const rows = [['暱稱','真實姓名','身分證字號','筆數','給付總額','扣繳稅額','二代健保','實付淨額']];
   list.forEach(g => rows.push([g.dancer, g.realName, g.idNumber, g.count, g.gross, g.tax, g.nhi, g.net]));
   downloadCsv(rows, `年度總表_${val('annualYear')}.csv`);
+}
+
+// ---------- 二代健保補充保費申報檔（依健保署執行業務收入csv格式規定） ----------
+function openNhiExportForm() {
+  const year = val('annualYear');
+  showModal(`
+    <h2>產生二代健保申報檔（${year}年度）</h2>
+    <p style="color:var(--muted);font-size:13px;">只會列出「有實際扣到二代健保」的舞者（未達門檻或已勾免扣的不會出現，這是依健保署規定，這類本來就不用申報）。以「同一舞者、同一個月」當一筆單次給付，跟系統扣繳邏輯一致。</p>
+    <div class="row">
+      <div class="field"><label>聯絡人姓名</label><input id="n_contact"></div>
+      <div class="field"><label>聯絡電話</label><input id="n_phone"></div>
+    </div>
+    <div class="field"><label>電子郵件信箱</label><input id="n_email" type="email"></div>
+    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
+      <button class="primary" onclick="downloadNhiExport(${year})">下載申報CSV</button></div>
+  `);
+}
+function _toRocMonth(dateStr) { // 'YYYY-MM' -> 'yyymm'（民國年，5碼）
+  const [y, m] = dateStr.split('-');
+  return String(Number(y) - 1911) + m;
+}
+function _toRocDate(dateStr) { // 'YYYY-MM-DD' -> 'yyymmdd'（民國年，7碼）
+  const [y, m, d] = dateStr.split('-');
+  return String(Number(y) - 1911) + m + d;
+}
+function downloadNhiExport(year) {
+  apiGet('nhiExportRows', { year }).then(rows => {
+    if (!rows.length) { alert('這一年沒有需要申報的紀錄（都是免扣或未達門檻）'); return; }
+    const contact = val('n_contact'), phone = val('n_phone'), email = val('n_email');
+    const startMonth = _toRocMonth(`${year}-01`), endMonth = _toRocMonth(`${year}-12`);
+    const grossTotal = rows.reduce((s,r)=>s+r.gross,0);
+    const nhiTotal = rows.reduce((s,r)=>s+r.nhi,0);
+    const header = ['1','70541606','65',startMonth,endMonth,rows.length,grossTotal,nhiTotal,'靈動力肢體開發有限公司',phone,email,contact];
+    const detailRows = rows.map((r,i) => {
+      // 同一人同月只會有一列（我們已經先合併過），申報編號固定填1
+      return ['2','I',_toRocDate(r.payDate),r.idNumber,r.realName||r.dancer,r.gross,r.nhi,'1','',''];
+    });
+    const csv = [header, ...detailRows].map(row => row.join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    a.href = url; a.download = `DPR70541606${today}001.csv`; a.click();
+    URL.revokeObjectURL(url);
+    closeModal();
+  }).catch(showErr);
 }
 
 // ---------- 異動紀錄 ----------
