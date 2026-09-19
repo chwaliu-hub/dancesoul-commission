@@ -3,1089 +3,678 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>舞者抽成系統 — DanceSoul</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Anton&display=swap" rel="stylesheet">
+<title>DanceSoul 課程預約管理系統 — 後台</title>
 <style>
   :root{
-    --bg:#f4f1ea; --panel:#fffdf9; --line:#e3ddcf; --ink:#2e2a24; --muted:#8a8271;
-    --accent:#b5651d; --accent-soft:#e9d9c4; --good:#5b7a5a; --bad:#a4453a;
+    --beige-bg: #F5EFE3;
+    --beige-panel: #FBF8F1;
+    --beige-line: #E4D8C0;
+    --ink: #4A3F2F;
+    --ink-soft: #8A7A5C;
+    --accent: #B98A5A;
+    --accent-soft: #E9DCC4;
+    --green: #5C7A5C;
+    --green-soft: #E4EEE0;
+    --red: #B5674F;
+    --red-soft: #F3E2DB;
+    --radius: 10px;
   }
-  *{box-sizing:border-box;}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans TC',sans-serif;font-size:16px;}
-  header{background:var(--panel);border-bottom:1px solid var(--line);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
-  header h1{font-size:18px;margin:0;font-weight:700;}
-  header .sub{color:var(--muted);font-size:13px;}
-  nav{display:flex;gap:4px;padding:12px 24px 0;background:var(--bg);flex-wrap:wrap;}
-  nav button{background:none;border:none;padding:10px 16px;font-family:inherit;font-size:15px;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0;}
-  nav button.active{background:var(--panel);color:var(--ink);font-weight:700;border:1px solid var(--line);border-bottom:none;}
-  main{padding:20px 24px 60px;max-width:1100px;margin:0 auto;}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:16px;}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;}
-  .sumtable{width:100%;border-collapse:collapse;}
-  .sumtable td{border:none;font-size:15px;padding:6px 4px;}
-  .sumtable tr td.slabel{text-align:left;}
-  .sumtable tr td.sprice{text-align:right;border-bottom:1px solid var(--accent);}
-  .sumtable tr.total td{font-weight:700;font-size:16px;}
-  .doc-logo{font-family:'Anton',sans-serif;font-size:24px;letter-spacing:1.5px;line-height:1;}
-  .doc-tagline{font-size:9px;letter-spacing:2.5px;color:var(--muted);margin-top:2px;margin-bottom:10px;}
-  .stat{background:var(--accent-soft);border-radius:10px;padding:14px 16px;}
-  .stat .label{font-size:13px;color:var(--muted);}
-  .stat .value{font-size:24px;font-weight:900;margin-top:4px;}
-  table{width:100%;border-collapse:collapse;font-size:14px;}
-  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);}
-  th{color:var(--muted);font-weight:700;font-size:13px;}
-  tr:hover td{background:#faf7f0;}
-  input,select,textarea{font-family:inherit;font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);width:100%;}
-  label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px;}
-  .field{margin-bottom:12px;}
-  .row{display:flex;gap:12px;flex-wrap:wrap;}
-  .row > .field{flex:1;min-width:140px;}
-  button.primary{background:var(--accent);color:#fff;border:none;padding:10px 18px;border-radius:8px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;}
-  button.ghost{background:none;border:1px solid var(--line);padding:8px 14px;border-radius:8px;font-family:inherit;cursor:pointer;color:var(--ink);}
-  button.link{background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;font-size:13px;padding:2px 6px;}
-  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
-  h2{font-size:16px;margin:0 0 14px;}
-  .empty{color:var(--muted);text-align:center;padding:30px 0;}
-  .tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;background:var(--accent-soft);}
-  .item-row{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
-  .item-row-v2{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;background:#fff;}
-  .item-row-line1{display:flex;gap:8px;margin-bottom:8px;}
-  .item-row-line1 input{flex:1;}
-  .item-row-line2{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-  .item-row-line2 select{flex:1;min-width:120px;}
-  .item-row-line2 input{flex:1;min-width:80px;}
-  .item-row-amt{min-width:90px;text-align:right;font-weight:700;margin-left:auto;}
-  .field-mini{display:flex;flex-direction:column;gap:2px;}
-  .field-mini label{font-size:11px;color:var(--muted);}
-  .field-mini input{width:80px;}
-  .item-row input{flex:1;}
-  .modal-bg{position:fixed;inset:0;background:rgba(46,42,36,.4);display:none;align-items:center;justify-content:center;z-index:50;}
-  .modal-bg.open{display:flex;}
-  .modal{background:var(--panel);border-radius:12px;padding:22px;width:min(520px,92vw);max-height:88vh;overflow:auto;}
-  .print-sheet{page-break-after:always;}
-  @media print{ header,nav,.no-print{display:none !important;} main{padding:0;} .panel{border:none;} }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    font-size: 16px;
+    background: var(--beige-bg);
+    color: var(--ink);
+    line-height: 1.6;
+  }
+  header{
+    padding: 24px 32px;
+    border-bottom: 1px solid var(--beige-line);
+    background: var(--beige-panel);
+  }
+  header h1{
+    margin:0;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  header p{
+    margin: 4px 0 0;
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+  .container{
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 24px 32px 64px;
+  }
+  .config{
+    background: var(--beige-panel);
+    border: 1px solid var(--beige-line);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .config label{ font-size: 14px; color: var(--ink-soft); white-space: nowrap; }
+  .config input[type=text]{ flex: 1; min-width: 260px; }
+  .config .status{ font-size: 13px; padding: 4px 10px; border-radius: 20px; }
+  .status.ok{ background: var(--green-soft); color: var(--green); }
+  .status.bad{ background: var(--red-soft); color: var(--red); }
+  .status.idle{ background: var(--accent-soft); color: var(--accent); }
+
+  .tabs{
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--beige-line);
+  }
+  .tab-btn{
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 16px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+  }
+  .tab-btn.active{
+    color: var(--ink);
+    font-weight: 700;
+    border-bottom-color: var(--accent);
+  }
+  .panel{ display: none; }
+  .panel.active{ display: block; }
+
+  .card{
+    background: var(--beige-panel);
+    border: 1px solid var(--beige-line);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .card h2{
+    font-size: 17px;
+    margin: 0 0 16px;
+  }
+  .card h3{
+    font-size: 15px;
+    margin: 0 0 12px;
+    color: var(--ink-soft);
+  }
+  .grid{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .field label{
+    display:block;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  input[type=text], input[type=number], input[type=date], input[type=time], select{
+    width: 100%;
+    padding: 9px 10px;
+    font-family: inherit;
+    font-size: 15px;
+    border: 1px solid var(--beige-line);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--ink);
+  }
+  input:focus, select:focus{
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  button.primary{
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 700;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button.primary:hover{ opacity: 0.9; }
+  button.primary:disabled{ opacity: 0.5; cursor: not-allowed; }
+  button.ghost{
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    background: none;
+    border: 1px solid var(--beige-line);
+    border-radius: 6px;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  button.danger{
+    padding: 6px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    background: var(--red-soft);
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--red);
+    cursor: pointer;
+  }
+
+  table{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th, td{
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--beige-line);
+  }
+  th{
+    color: var(--ink-soft);
+    font-weight: 700;
+    font-size: 13px;
+  }
+  tr:last-child td{ border-bottom: none; }
+  .badge{
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+  }
+  .badge.open{ background: var(--green-soft); color: var(--green); }
+  .badge.full{ background: var(--accent-soft); color: var(--accent); }
+  .badge.cancel{ background: var(--red-soft); color: var(--red); }
+
+  .filters{
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+  .filters .field{ min-width: 160px; }
+  .empty{
+    color: var(--ink-soft);
+    font-size: 14px;
+    padding: 24px 0;
+    text-align: center;
+  }
+  .toast{
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    display: none;
+    z-index: 100;
+  }
+  .toast.ok{ background: var(--green-soft); color: var(--green); }
+  .toast.bad{ background: var(--red-soft); color: var(--red); }
 </style>
 </head>
 <body>
 
 <header>
-  <div>
-    <h1>舞者抽成系統</h1>
-    <div class="sub">靈動力肢體開發有限公司 · CASE 演出活動</div>
-  </div>
-  <div class="sub" id="apiStatus">連線中…</div>
+  <h1>DanceSoul 課程預約管理系統</h1>
+  <p>後台排課操作介面</p>
 </header>
 
-<nav id="nav"></nav>
-<main id="main"></main>
+<div class="container">
 
-<div class="modal-bg no-print" id="modalBg"><div class="modal" id="modalBody"></div></div>
+  <div class="config">
+    <label for="apiUrl">Apps Script 網址</label>
+    <input type="text" id="apiUrl" placeholder="貼上部署後的 Web App 網址">
+    <label for="adminPassword">管理密碼</label>
+    <input type="password" id="adminPassword" placeholder="設定的管理密碼" style="max-width:160px;">
+    <button class="ghost" id="saveUrlBtn">儲存</button>
+    <span class="status idle" id="connStatus">尚未連線</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="courses">課程管理</button>
+    <button class="tab-btn" data-tab="sessions">課表管理</button>
+  </div>
+
+  <!-- 課程管理 -->
+  <div class="panel active" id="panel-courses">
+    <div class="card">
+      <h2>新增課程</h2>
+      <div class="grid">
+        <div class="field">
+          <label>課程名稱</label>
+          <input type="text" id="c_name" placeholder="例如：兒童芭蕾基礎班">
+        </div>
+        <div class="field">
+          <label>類型</label>
+          <select id="c_type">
+            <option value="固定班表">固定班表</option>
+            <option value="單堂">單堂</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>所屬單位</label>
+          <select id="c_unit">
+            <option value="STUDIO">STUDIO</option>
+            <option value="CASE">CASE</option>
+            <option value="本勢娛樂">本勢娛樂</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>授課老師</label>
+          <select id="c_teacher"></select>
+        </div>
+        <div class="field">
+          <label>堂數費用</label>
+          <input type="number" id="c_price" placeholder="500">
+        </div>
+        <div class="field">
+          <label>堂長（分鐘）</label>
+          <input type="number" id="c_duration" placeholder="60">
+        </div>
+        <div class="field">
+          <label>上限人數</label>
+          <input type="number" id="c_capacity" placeholder="15">
+        </div>
+      </div>
+      <button class="primary" id="addCourseBtn">新增課程</button>
+    </div>
+
+    <div class="card">
+      <h2>課程清單</h2>
+      <div id="coursesTableWrap"><div class="empty">尚未連線，請先貼上 Apps Script 網址</div></div>
+    </div>
+  </div>
+
+  <!-- 課表管理 -->
+  <div class="panel" id="panel-sessions">
+    <div class="card">
+      <h2>固定班表批次展開</h2>
+      <h3>選好課程與星期幾、要展開幾週，按一次就自動排好未來的場次</h3>
+      <div class="grid">
+        <div class="field">
+          <label>課程</label>
+          <select id="e_course"></select>
+        </div>
+        <div class="field">
+          <label>星期幾</label>
+          <select id="e_weekday">
+            <option value="0">星期日</option>
+            <option value="1">星期一</option>
+            <option value="2">星期二</option>
+            <option value="3">星期三</option>
+            <option value="4">星期四</option>
+            <option value="5">星期五</option>
+            <option value="6">星期六</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>起始日期</label>
+          <input type="date" id="e_startDate">
+        </div>
+        <div class="field">
+          <label>開始時間</label>
+          <input type="time" id="e_startTime">
+        </div>
+        <div class="field">
+          <label>結束時間</label>
+          <input type="time" id="e_endTime">
+        </div>
+        <div class="field">
+          <label>教室/場地</label>
+          <input type="text" id="e_room" placeholder="A教室">
+        </div>
+        <div class="field">
+          <label>上限人數</label>
+          <input type="number" id="e_capacity" placeholder="15">
+        </div>
+        <div class="field">
+          <label>展開幾週</label>
+          <input type="number" id="e_weeks" value="8">
+        </div>
+      </div>
+      <button class="primary" id="expandBtn">批次展開場次</button>
+    </div>
+
+    <div class="card">
+      <h2>單堂加開</h2>
+      <div class="grid">
+        <div class="field">
+          <label>課程</label>
+          <select id="s_course"></select>
+        </div>
+        <div class="field">
+          <label>日期</label>
+          <input type="date" id="s_date">
+        </div>
+        <div class="field">
+          <label>開始時間</label>
+          <input type="time" id="s_startTime">
+        </div>
+        <div class="field">
+          <label>結束時間</label>
+          <input type="time" id="s_endTime">
+        </div>
+        <div class="field">
+          <label>教室/場地</label>
+          <input type="text" id="s_room" placeholder="A教室">
+        </div>
+        <div class="field">
+          <label>上限人數</label>
+          <input type="number" id="s_capacity" placeholder="15">
+        </div>
+      </div>
+      <button class="primary" id="addSessionBtn">加開此場次</button>
+    </div>
+
+    <div class="card">
+      <h2>場次清單</h2>
+      <div class="filters">
+        <div class="field">
+          <label>課程篩選</label>
+          <select id="f_course"><option value="">全部課程</option></select>
+        </div>
+        <div class="field">
+          <label>起始日期</label>
+          <input type="date" id="f_startDate">
+        </div>
+        <div class="field">
+          <label>結束日期</label>
+          <input type="date" id="f_endDate">
+        </div>
+        <button class="ghost" id="filterBtn">套用篩選</button>
+      </div>
+      <div id="sessionsTableWrap"><div class="empty">尚未連線，請先貼上 Apps Script 網址</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-// ====== 設定：貼上你部署後的 Apps Script 網頁應用程式網址 ======
-const API_URL = 'https://script.google.com/macros/s/AKfycbwI8La23JAtb2JIooIXYIln3rPPU38UO59ZyeRKx5-eBZRp_BrY2CdxKKa4ZPcqAYxE9A/exec';
+let API_URL = localStorage.getItem('dancesoul_booking_api_url') || '';
+let ADMIN_PASSWORD = localStorage.getItem('dancesoul_booking_admin_password') || '';
+let courses = [];
+let teachers = [];
 
-const state = { tab: 'dashboard', dancers: [], events: [], disbursements: [] };
-const ITEM_TYPES = {
-  '排練費用': ['hourlyWage','hours','qty'],
-  '舞蹈演出': ['unitPrice','qty'],
-  '彩排費用': ['unitPrice','qty'],
-  '演出費': ['unitPrice','qty','songs'],
-  '盯場費用': ['unitPrice','qty'],
-  '拍攝費用': ['unitPrice','qty'],
-  '教學': ['unitPrice','qty'],
-  '助教協助': ['unitPrice','qty'],
-  '其他項目': ['unitPrice','qty']
-};
-const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數'};
+document.getElementById('apiUrl').value = API_URL;
+document.getElementById('adminPassword').value = ADMIN_PASSWORD;
 
-const TABS = [
-  ['dashboard', '首頁'],
-  ['dancers', '舞者資料'],
-  ['events', '活動報價'],
-  ['disbursements', '撥款明細'],
-  ['remuneration', '勞務報酬單'],
-  ['signing', '簽收單'],
-  ['annual', '年度總表'],
-  ['log', '異動紀錄'],
-];
-
-function apiGet(action, params={}) {
-  const qs = new URLSearchParams({ action, ...params }).toString();
-  return fetch(`${API_URL}?${qs}`).then(r => r.json()).then(r => {
-    if (r.error) throw new Error(r.error);
-    return r.data;
-  });
+function showToast(msg, ok){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (ok ? 'ok' : 'bad');
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, 3200);
 }
-function apiPost(action, payload) {
-  return fetch(API_URL, {
+
+function setConn(ok, label){
+  const s = document.getElementById('connStatus');
+  s.textContent = label;
+  s.className = 'status ' + (ok ? 'ok' : 'bad');
+}
+
+document.getElementById('saveUrlBtn').addEventListener('click', () => {
+  API_URL = document.getElementById('apiUrl').value.trim();
+  ADMIN_PASSWORD = document.getElementById('adminPassword').value;
+  localStorage.setItem('dancesoul_booking_api_url', API_URL);
+  localStorage.setItem('dancesoul_booking_admin_password', ADMIN_PASSWORD);
+  refreshAll();
+});
+
+// ---- Tabs ----
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ---- API helpers ----
+async function apiGet(action, params){
+  if(!API_URL){ setConn(false, '尚未連線'); throw new Error('尚未設定網址'); }
+  const qs = new URLSearchParams({ action, ...(params||{}) });
+  const res = await fetch(API_URL + '?' + qs.toString());
+  const json = await res.json();
+  if(!json.success) throw new Error(json.error || '查詢失敗');
+  return json.data;
+}
+
+async function apiPost(action, payload){
+  if(!API_URL){ setConn(false, '尚未連線'); throw new Error('尚未設定網址'); }
+  const res = await fetch(API_URL, {
     method: 'POST',
-    body: JSON.stringify({ action, payload })
-  }).then(r => r.json()).then(r => {
-    if (r.error) throw new Error(r.error);
-    return r.data;
+    body: JSON.stringify({ action, payload, adminPassword: ADMIN_PASSWORD })
   });
+  const json = await res.json();
+  if(!json.success) throw new Error(json.error || '操作失敗');
+  return json.data;
 }
 
-function renderNav() {
-  const nav = document.getElementById('nav');
-  nav.innerHTML = TABS.map(([id,label]) =>
-    `<button class="${state.tab===id?'active':''}" onclick="switchTab('${id}')">${label}</button>`
-  ).join('');
-}
-function switchTab(id) { state.tab = id; renderNav(); render(); }
-
-function render() {
-  const main = document.getElementById('main');
-  main.innerHTML = '<div class="empty">載入中…</div>';
-  const renderers = { dashboard: renderDashboard, dancers: renderDancers, events: renderEvents, disbursements: renderDisbursements, remuneration: renderRemuneration, signing: renderSigning, annual: renderAnnual, log: renderLog };
-  renderers[state.tab]();
-}
-
-function money(n){ return (Number(n)||0).toLocaleString('zh-TW'); }
-
-// ---------- 首頁 ----------
-function renderDashboard() {
-  apiGet('dashboard').then(d => {
-    document.getElementById('main').innerHTML = `
-      <div class="panel">
-        <h2>本月概況（${d.thisMonth}）</h2>
-        <div class="grid">
-          <div class="stat"><div class="label">本月撥款筆數</div><div class="value">${d.thisMonthCount}</div></div>
-          <div class="stat"><div class="label">本月撥款總額</div><div class="value">$${money(d.thisMonthTotal)}</div></div>
-          <div class="stat"><div class="label">在職舞者</div><div class="value">${d.dancerCount}</div></div>
-          <div class="stat"><div class="label">活動總數</div><div class="value">${d.eventCount}</div></div>
-        </div>
-      </div>
-      <div class="panel">
-        <h2>累計撥款前 10 名舞者</h2>
-        <table>
-          <thead><tr><th>舞者</th><th>累計實領金額</th></tr></thead>
-          <tbody>${d.topDancers.map(t=>`<tr><td>${t.name}</td><td>$${money(t.total)}</td></tr>`).join('') || '<tr><td colspan=2 class="empty">尚無資料</td></tr>'}</tbody>
-        </table>
-      </div>`;
-  }).catch(showErr);
-}
-
-// ---------- 舞者資料 ----------
-function renderDancers() {
-  apiGet('listDancers').then(list => {
-    state.dancers = list;
-    document.getElementById('main').innerHTML = `
-      <div class="panel">
-        <div class="toolbar"><h2>舞者資料</h2>
-          <div><button class="ghost" onclick="exportUnionList()">匯出工會投保清單</button>
-          <button class="primary" onclick="openDancerForm()">＋ 新增舞者</button></div>
-        </div>
-        <div class="row" style="margin-bottom:10px;">
-          <div class="field" style="flex:2;"><input id="dancerSearch" placeholder="搜尋暱稱／真實姓名" oninput="renderDancersTable()"></div>
-          <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showIdleDancers" style="width:auto;" onchange="renderDancersTable()"> 顯示閒置／離職</label></div>
-        </div>
-        <div class="row" id="dancerBatchBar" style="display:none;align-items:center;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin-bottom:10px;">
-          <div style="flex:1;">已選 <span id="dancerBatchCount">0</span> 位</div>
-          <button class="ghost" onclick="applyBatchDancerStatus('在職')">設為在職</button>
-          <button class="ghost" onclick="applyBatchDancerStatus('閒置')">設為閒置</button>
-          <button class="ghost" onclick="applyBatchDancerStatus('離職')">設為離職</button>
-        </div>
-        <div id="dancersTableWrap"></div>
-      </div>`;
-    renderDancersTable();
-  }).catch(showErr);
-}
-function renderDancersTable() {
-  const q = (document.getElementById('dancerSearch')?.value || '').toLowerCase();
-  const showIdle = document.getElementById('showIdleDancers')?.checked;
-  const list = state.dancers.filter(d => {
-    const matchesSearch = !q || d.name.toLowerCase().includes(q) || (d.realName||'').toLowerCase().includes(q);
-    if (!matchesSearch) return false;
-    if (q) return true; // 搜尋時不受閒置篩選限制，找得到人
-    return showIdle || d.status === '在職';
-  });
-  document.getElementById('dancersTableWrap').innerHTML = `
-    <table>
-      <thead><tr><th></th><th>暱稱</th><th>真實姓名</th><th>身分證字號</th><th>戶籍地址</th><th>抽成比例</th><th>帳號</th><th>狀態</th><th></th></tr></thead>
-      <tbody>${list.map(d => `
-        <tr>
-          <td><input type="checkbox" class="dancerCheck" style="width:auto;" value="${d.name}" onchange="updateDancerBatchBar()"></td>
-          <td>${d.name}</td><td>${d.realName||'<span style="color:var(--bad,#a4453a);">未填</span>'}</td><td>${d.idNumber||''}</td><td>${d.address||''}</td><td>${Math.round(d.rate*100)}%</td><td>${d.account||''}</td>
-          <td><span class="tag">${d.status}</span>${d.exemptNhi?' <span class="tag">免二代健保</span>':''}${d.exemptTax?' <span class="tag">免所得稅</span>':''}</td>
-          <td><button class="link" onclick='openDancerForm(${JSON.stringify(d)})'>編輯</button>
-              <button class="link" onclick="deleteDancer('${d.name}')">刪除</button></td>
-        </tr>`).join('') || '<tr><td colspan=9 class="empty">沒有符合的舞者</td></tr>'}
-      </tbody>
-    </table>`;
-  updateDancerBatchBar();
-}
-function updateDancerBatchBar() {
-  const checked = document.querySelectorAll('.dancerCheck:checked');
-  document.getElementById('dancerBatchBar').style.display = checked.length ? 'flex' : 'none';
-  document.getElementById('dancerBatchCount').textContent = checked.length;
-}
-function applyBatchDancerStatus(status) {
-  const names = Array.from(document.querySelectorAll('.dancerCheck:checked')).map(c => c.value);
-  if (!names.length) return;
-  if (!confirm(`確定把選中的 ${names.length} 位舞者都設為「${status}」？`)) return;
-  apiPost('batchSetDancerStatus', { names, status }).then(() => renderDancers()).catch(showErr);
-}
-function exportUnionList() {
-  const rows = [['暱稱','真實姓名','身分證字號','已透過工會投保(免扣二代健保)']];
-  state.dancers.forEach(d => rows.push([d.name, d.realName||'', d.idNumber||'', d.exemptNhi?'是':'否']));
-  downloadCsv(rows, `工會投保清單_${new Date().toISOString().slice(0,10)}.csv`);
-}
-function downloadCsv(rows, filename) {
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
-
-function openDancerForm(d) {
-  d = d || {};
-  showModal(`
-    <h2>${d.name ? '編輯舞者' : '新增舞者'}</h2>
-    <div class="row">
-      <div class="field"><label>暱稱（用來連結活動、撥款紀錄，不要隨便改）</label><input id="f_name" value="${d.name||''}"></div>
-      <div class="field"><label>真實姓名（開勞務報酬單用）</label><input id="f_realName" value="${d.realName||''}"></div>
-    </div>
-    <div class="row">
-      <div class="field"><label>身分證字號（開勞務報酬單用）</label><input id="f_idNumber" value="${d.idNumber||''}"></div>
-      <div class="field"><label>抽成比例（0~1，例如 0.7）</label><input id="f_rate" type="number" step="0.01" value="${d.rate ?? ''}"></div>
-    </div>
-    <div class="row">
-      <div class="field"><label>狀態</label>
-        <select id="f_status"><option ${d.status==='在職'?'selected':''}>在職</option><option ${d.status==='閒置'?'selected':''}>閒置</option><option ${d.status==='離職'?'selected':''}>離職</option></select>
-      </div>
-    </div>
-    <div class="field"><label>匯款帳號</label><input id="f_account" value="${d.account||''}"></div>
-    <div class="field"><label>戶籍地址（明年申報扣繳憑單用）</label><input id="f_address" value="${d.address||''}"></div>
-    <div class="field" style="margin-top:4px;">
-      <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_exemptNhi" style="width:auto;" ${d.exemptNhi?'checked':''}> 免扣二代健保（此收入已作為職業工會健保投保金額依據）</label>
-    </div>
-    <div class="field" style="margin-top:4px;">
-      <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_exemptTax" style="width:auto;" ${d.exemptTax?'checked':''}> 免扣10%所得稅（例如本人是老闆、或屬於兼職所得而非執行業務所得）</label>
-    </div>
-    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
-      <button class="primary" onclick='submitDancer(${JSON.stringify(d.name||'')})'>儲存</button></div>
-  `);
-}
-function submitDancer(originalName) {
-  const payload = {
-    originalName,
-    name: val('f_name'), realName: val('f_realName'), idNumber: val('f_idNumber'), address: val('f_address'), rate: Number(val('f_rate')), account: val('f_account'),
-    status: val('f_status'),
-    exemptNhi: document.getElementById('f_exemptNhi').checked,
-    exemptTax: document.getElementById('f_exemptTax').checked
-  };
-  apiPost('saveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
-}
-function deleteDancer(name) {
-  if (!confirm(`確定刪除舞者「${name}」？`)) return;
-  apiPost('deleteDancer', { name }).then(renderDancers).catch(showErr);
-}
-
-// ---------- 活動報價 ----------
-function renderEvents() {
-  apiGet('listEvents').then(list => {
-    state.events = list;
-    document.getElementById('main').innerHTML = `
-      <div class="panel">
-        <div class="toolbar"><h2>活動報價</h2><button class="primary" onclick="openEventForm()">＋ 新增活動</button></div>
-        <div class="row" style="margin-bottom:10px;">
-          <div class="field" style="flex:2;"><input id="eventSearch" placeholder="搜尋活動名稱／客戶" oninput="renderEventsTable()"></div>
-          <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showArchivedEvents" style="width:auto;" onchange="renderEventsTable()"> 顯示已封存</label></div>
-        </div>
-        <div id="eventsTableWrap"></div>
-      </div>`;
-    renderEventsTable();
-  }).catch(showErr);
-}
-function renderEventsTable() {
-  const q = (document.getElementById('eventSearch')?.value || '').toLowerCase();
-  const showArchived = document.getElementById('showArchivedEvents')?.checked;
-  let list = state.events.filter(e => {
-    const archived = e.paidByClient && e.commissionPaid;
-    if (archived && !showArchived) return false;
-    if (q && !(e.name.toLowerCase().includes(q) || (e.client||'').toLowerCase().includes(q))) return false;
-    return true;
-  });
-  document.getElementById('eventsTableWrap').innerHTML = `
-    <table>
-      <thead><tr><th>日期</th><th>活動名稱</th><th>客戶</th><th>總計</th><th>狀態</th><th>已收款</th><th>已付抽成</th><th></th></tr></thead>
-      <tbody>${list.map(e => `
-        <tr>
-          <td>${e.date||''}</td><td>${e.name}</td><td>${e.client||''}</td>
-          <td>$${money(e.total)}</td><td><span class="tag">${e.status}</span>${e.isOverseas?' <span class="tag">海外</span>':''}</td>
-          <td><input type="checkbox" style="width:auto;" ${e.paidByClient?'checked':''} onchange="quickToggleEvent('${e.eventId}','paidByClient',this.checked)"></td>
-          <td><input type="checkbox" style="width:auto;" ${e.commissionPaid?'checked':''} onchange="quickToggleEvent('${e.eventId}','commissionPaid',this.checked)"></td>
-          <td><button class="link" onclick='openEventForm(${JSON.stringify(e)})'>編輯</button>
-              <button class="link" onclick="printQuote('${e.eventId}')">列印報價單</button>
-              <button class="link" onclick="deleteEvent('${e.eventId}')">刪除</button></td>
-        </tr>`).join('') || '<tr><td colspan=8 class="empty">沒有符合的活動</td></tr>'}
-      </tbody>
-    </table>`;
-}
-function quickToggleEvent(eventId, field, value) {
-  const e = state.events.find(x => x.eventId === eventId);
-  if (!e) return;
-  e[field] = value;
-  if (field === 'paidByClient' && value && !e.paidDate) e.paidDate = new Date().toISOString().slice(0,10);
-  apiPost('saveEvent', {
-    eventId: e.eventId, name: e.name, date: e.date, client: e.client, status: e.status,
-    items: e.items, discount: e.discount, taxRate: e.subtotal ? (e.tax / (e.subtotal - e.discount) || 0) : 0,
-    isOverseas: e.isOverseas, invoiceNo: e.invoiceNo, rmbAmount: e.rmbAmount,
-    paidByClient: e.paidByClient, commissionPaid: e.commissionPaid,
-    paidDate: e.paidDate || '', paidMethod: e.paidMethod || ''
-  }).then(() => renderEventsTable()).catch(showErr);
-}
-
-let editingItems = [];
-function openEventForm(e) {
-  e = e || {};
-  editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)) : [{type:'演出費',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}];
-  showModal(`
-    <h2>${e.eventId ? '編輯活動' : '新增活動'}</h2>
-    <div class="row">
-      <div class="field"><label>活動名稱</label><input id="f_name" value="${e.name||''}"></div>
-      <div class="field"><label>日期</label><input id="f_date" type="date" value="${e.date||''}"></div>
-    </div>
-    <div class="row">
-      <div class="field"><label>客戶</label><input id="f_client" value="${e.client||''}"></div>
-      <div class="field"><label>狀態</label>
-        <select id="f_status">${['報價中','已確認','已結案'].map(s=>`<option ${e.status===s?'selected':''}>${s}</option>`).join('')}</select>
-      </div>
-    </div>
-    <label>報價項目</label>
-    <div id="itemsList"></div>
-    <button class="ghost" onclick="addItemRow()">＋ 新增項目</button>
-    <div class="row" style="margin-top:12px;">
-      <div class="field"><label>折讓</label><input id="f_discount" type="number" value="${e.discount||0}"></div>
-      <div class="field"><label>營業稅率（例如 0.05）</label><input id="f_taxRate" type="number" step="0.01" value="0.05"></div>
-    </div>
-    <div class="field" style="margin-top:8px;">
-      <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_isOverseas" style="width:auto;" ${e.isOverseas?'checked':''} onchange="toggleOverseasFields()"> 海外客戶（列印時加上 Invoice# 和人民幣換算）</label>
-    </div>
-    <div class="row" id="overseasFields" style="display:${e.isOverseas?'flex':'none'};">
-      <div class="field"><label>Invoice #（自行填入）</label><input id="f_invoiceNo" value="${e.invoiceNo||''}"></div>
-      <div class="field"><label>換算人民幣金額</label><input id="f_rmbAmount" type="number" value="${e.rmbAmount||''}"></div>
-    </div>
-    <div class="row" style="margin-top:8px;">
-      <div class="field"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_paidByClient" style="width:auto;" ${e.paidByClient?'checked':''} onchange="togglePaidFields()"> 已收款</label></div>
-      <div class="field"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_commissionPaid" style="width:auto;" ${e.commissionPaid?'checked':''}> 已付抽成</label></div>
-    </div>
-    <div class="row" id="paidFields" style="display:${e.paidByClient?'flex':'none'};margin-top:8px;">
-      <div class="field"><label>收款日期</label><input id="f_paidDate" type="date" value="${e.paidDate||''}"></div>
-      <div class="field"><label>收款方式</label>
-        <select id="f_paidMethod">${['匯款','現金','支票'].map(m=>`<option ${e.paidMethod===m?'selected':''}>${m}</option>`).join('')}</select>
-      </div>
-    </div>
-    <p style="color:var(--muted);font-size:13px;">兩個都勾選後，這場活動會從主列表自動收起來（列表上方「顯示已封存」可以再叫出來）。</p>
-    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
-      <button class="primary" onclick='submitEvent(${JSON.stringify(e.eventId||'')})'>儲存</button></div>
-  `);
-  renderItemsList();
-}
-function toggleOverseasFields() {
-  document.getElementById('overseasFields').style.display = document.getElementById('f_isOverseas').checked ? 'flex' : 'none';
-}
-function togglePaidFields() {
-  document.getElementById('paidFields').style.display = document.getElementById('f_paidByClient').checked ? 'flex' : 'none';
-}
-function renderItemsList() {
-  document.getElementById('itemsList').innerHTML = editingItems.map((it,i) => {
-    const type = it.type || '演出費';
-    const fields = ITEM_TYPES[type];
-    return `
-    <div class="item-row-v2">
-      <div class="item-row-line1">
-        <select onchange="setItemType(${i}, this.value)">
-          ${Object.keys(ITEM_TYPES).map(t=>`<option ${type===t?'selected':''}>${t}</option>`).join('')}
-        </select>
-        ${type==='其他項目' ? `<input placeholder="項目名稱" value="${it.customLabel||''}" oninput="editingItems[${i}].customLabel=this.value">` : ''}
-        <input placeholder="備註（選填）" value="${it.note||''}" oninput="editingItems[${i}].note=this.value">
-      </div>
-      <div class="item-row-line2">
-        ${fields.map(f => `
-          <span class="field-mini"><label>${FIELD_LABEL[f]}</label><input type="number" value="${it[f] ?? (f==='qty'||f==='hours'||f==='songs'?1:'')}" oninput="updateItemAmount(${i}, '${f}', this.value)"></span>
-        `).join('')}
-        <span class="field-mini"><label>金額</label><input type="number" id="itemAmt_${i}" value="${it.amount||0}" style="font-weight:700;" oninput="editingItems[${i}].amount=Number(this.value)||0"></span>
-        <button class="link" onclick="removeItemRow(${i})">✕ 刪除</button>
-      </div>
-    </div>`;
-  }).join('');
-}
-function setItemType(i, type) {
-  editingItems[i].type = type;
-  renderItemsList();
-  recalcItemAmount(i);
-}
-function recalcItemAmount(i) {
-  const it = editingItems[i];
-  const fields = ITEM_TYPES[it.type || '演出費'];
-  let amount = 1;
-  fields.forEach(f => {
-    const def = (f === 'qty' || f === 'hours' || f === 'songs') ? 1 : 0;
-    amount *= (Number(it[f]) ?? def) || def;
-  });
-  it.amount = amount;
-  const el = document.getElementById(`itemAmt_${i}`);
-  if (el) el.value = it.amount;
-}
-function updateItemAmount(i, field, value) {
-  editingItems[i][field] = value;
-  recalcItemAmount(i);
-}
-function addItemRow(){ editingItems.push({type:'演出費',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}); renderItemsList(); }
-function removeItemRow(i){ editingItems.splice(i,1); renderItemsList(); }
-
-function submitEvent(eventId) {
-  const payload = {
-    eventId: eventId || undefined,
-    name: val('f_name'), date: val('f_date'), client: val('f_client'), status: val('f_status'),
-    items: editingItems.filter(it => it.label || it.amount),
-    discount: Number(val('f_discount')) || 0, taxRate: Number(val('f_taxRate')) || 0,
-    isOverseas: document.getElementById('f_isOverseas').checked,
-    invoiceNo: val('f_invoiceNo'), rmbAmount: val('f_rmbAmount') ? Number(val('f_rmbAmount')) : '',
-    paidByClient: document.getElementById('f_paidByClient').checked,
-    commissionPaid: document.getElementById('f_commissionPaid').checked,
-    paidDate: document.getElementById('f_paidByClient').checked ? val('f_paidDate') : '',
-    paidMethod: document.getElementById('f_paidByClient').checked ? val('f_paidMethod') : ''
-  };
-  apiPost('saveEvent', payload).then(() => { closeModal(); renderEvents(); }).catch(showErr);
-}
-function deleteEvent(eventId) {
-  if (!confirm('確定刪除這個活動？（撥款明細不會一併刪除）')) return;
-  apiPost('deleteEvent', { eventId }).then(renderEvents).catch(showErr);
-}
-function printQuote(eventId) {
-  const e = state.events.find(x => x.eventId === eventId);
-  if (!e) return;
-  const B = { // 公司匯款資訊（跟 Code.gs 的 BANK_INFO 保持一致，要改帳戶請兩邊都改）
-    accountNameEn:'DANCE SOUL', addressCn:'台灣台北市大安區仁愛路4段425-1號',
-    addressEn:'NO.425-1, SECTION 4, RENAI RD., DAAN DISTRICT, TAIPEI CITY',
-    bankNameCn:'永豐銀行仁愛分行', bankNameEn:'BANK SINOPAC JENAI BRANCH',
-    bankAddressCn:'台灣台北市大安區仁愛路4段316-1號',
-    bankAddressEn:'NO. 316-1, SEC 4, RENAI RD., DAAN DISTRICT, TAIPEI CITY, TAIWAN',
-    accountNo:'160-001-0003677-8', swiftCode:'SINOTWTP'
-  };
-  const w = window.open('', '_blank');
-  w.document.write(`
-    <html><head><meta charset="utf-8"><title>${e.name} 報價單</title>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-    <style>
-      *{box-sizing:border-box;}
-      @page{ size: A4; margin: 12mm; }
-      body{font-family:'Noto Sans TC',sans-serif;padding:0;color:#1a1a1a;font-size:12.5px;}
-      .head{display:flex;justify-content:space-between;align-items:flex-start;}
-      .logo{font-family:'Anton',sans-serif;font-size:28px;letter-spacing:1.5px;line-height:1;}
-      .tagline{font-size:9px;letter-spacing:2.5px;color:#333;margin-top:2px;}
-      .invoice-meta{text-align:right;font-size:12px;font-weight:700;}
-      .company-name{font-size:23px;font-weight:500;margin:12px 0 6px;}
-      .addr-block{font-size:11.5px;line-height:1.4;color:#333;}
-      hr{border:none;border-top:1px solid #1a1a1a;margin:10px 0;}
-      .meta-row{font-size:12.5px;margin:2px 0;}
-      table{width:100%;border-collapse:collapse;margin-top:10px;}
-      col.label{width:70%;} col.price{width:30%;}
-      th{text-align:left;font-size:13px;font-weight:700;padding:5px 4px 6px;border-bottom:2px solid #c9a227;}
-      th.price{text-align:left;}
-      td{padding:6px 4px;font-size:12.5px;}
-      tbody tr:nth-child(odd){background:#fafaf7;}
-      tbody tr td{border-bottom:1px solid #d8c98a;}
-      td.price-cell{display:flex;justify-content:space-between;}
-      .sumtable td{border:none;font-size:12.5px;}
-      .sumtable tr td.slabel{text-align:right;padding-right:14px;}
-      .sumtable tr td.sprice{border-bottom:1px solid #c9a227;padding:5px 4px;}
-      .sumtable tr.total td{font-weight:700;}
-      .sumtable tr.rmb td{background:#e6c771;font-weight:700;}
-      .bank-box{border:1px solid #ccc;border-radius:4px;padding:10px 14px;margin-top:16px;font-size:10.5px;line-height:1.5;}
-      .sign{text-align:center;font-size:12.5px;margin-top:16px;}
-      @media print{ body{padding:0;} }
-    </style></head><body>
-    <div class="head">
-      <div>
-        <div class="logo">DANCE SOUL</div>
-        <div class="tagline">THE PROFESSIONAL DANCE STUDIO</div>
-      </div>
-      ${e.isOverseas ? `<div class="invoice-meta">Invoice# ${e.invoiceNo||''}<br>Date:${e.date||''}</div>` : ''}
-    </div>
-    <div class="company-name">靈動力肢體開發有限公司</div>
-    <div class="addr-block">
-      台灣 台北市大安區<br>仁愛路四段425-1號3樓<br>電話 :886-2-27512868
-    </div>
-    <hr>
-    <div class="meta-row">公司名稱：${e.client||''}</div>
-    <div class="meta-row">活動時間：${e.date||''}</div>
-    <table>
-      <colgroup><col class="label"><col class="price"></colgroup>
-      <thead><tr><th>Request Payment</th><th class="price">Price.</th></tr></thead>
-      <tbody>
-        ${e.items.map(it=>{
-          const type = it.type || '演出費';
-          const label = type === '其他項目' ? (it.customLabel || '其他項目') : type;
-          const fields = ITEM_TYPES[type] || [];
-          const rate = it.unitPrice || it.hourlyWage;
-          let breakdown = rate ? `$${money(rate)}` : '';
-          if (fields.includes('qty') && it.qty && it.qty != 1) breakdown += ` × ${it.qty}人`;
-          if (fields.includes('hours') && it.hours) breakdown += ` × ${it.hours}時數`;
-          if (fields.includes('songs') && it.songs && it.songs != 1) breakdown += ` × ${it.songs}首`;
-          return `<tr><td>${label}${it.note?`（${it.note}）`:''}${breakdown?` <span style="color:#888;font-size:11px;">(${breakdown})</span>`:''}</td><td><div class="price-cell"><span>NT$</span><span>${money(it.amount)}</span></div></td></tr>`;
-        }).join('')}
-      </tbody>
-    </table>
-    <table class="sumtable">
-      <tr><td class="slabel" style="width:70%;">Subtotal</td><td class="sprice"><div class="price-cell"><span>NT$</span><span>${money(e.subtotal)}</span></div></td></tr>
-      ${e.discount ? `<tr><td class="slabel">折讓</td><td class="sprice"><div class="price-cell"><span>NT$</span><span>-${money(e.discount)}</span></div></td></tr>` : ''}
-      <tr><td class="slabel">Tax</td><td class="sprice"><div class="price-cell"><span></span><span>${e.tax?money(e.tax):''}</span></div></td></tr>
-      <tr class="total"><td class="slabel">Total</td><td class="sprice"><div class="price-cell"><span>NT$</span><span>${money(e.total)}</span></div></td></tr>
-      ${e.isOverseas ? `<tr class="rmb"><td class="slabel">換算人民幣</td><td class="sprice"><div class="price-cell"><span>CNY</span><span>${money(e.rmbAmount)}</span></div></td></tr>` : ''}
-    </table>
-    <div class="bank-box">
-      公司名稱　　：靈動力肢體開發有限公司<br>
-      Account Name　：${B.accountNameEn}<br>
-      公司地址：${B.addressCn}<br>
-      Beneficiary Address：${B.addressEn}<br>
-      银行名称：${B.bankNameCn}<br>
-      Bank Name：${B.bankNameEn}<br>
-      银行地址：${B.bankAddressCn}<br>
-      Bank Address：${B.bankAddressEn}<br>
-      公司帳戶(Beneficiary Account No)：${B.accountNo}<br>
-      银行國際代碼（Swift Code）：${B.swiftCode}
-    </div>
-    <div class="sign">主管審核 / __________________</div>
-    </body></html>`);
-  w.document.close(); w.print();
-}
-
-// ---------- 撥款明細（案子為主，依「活動名稱」分組——活動ID常是空的，不能拿來分組） ----------
-let currentDisbCase = null; // 目前展開檢視的案子名稱；null = 顯示案子清單
-function renderDisbursements() {
-  Promise.all([apiGet('listDisbursements'), apiGet('listEvents'), apiGet('listDancers')]).then(([disb, events, dancers]) => {
-    state.disbursements = disb; state.events = events; state.dancers = dancers;
-    if (currentDisbCase) renderDisbCaseDetail(currentDisbCase);
-    else renderDisbCaseList();
-  }).catch(showErr);
-}
-function _disbGroups() {
-  const groups = {};
-  state.disbursements.forEach(d => {
-    const key = d.eventName || '(未命名活動)';
-    if (!groups[key]) groups[key] = { eventName: key, eventId: d.eventId || '', records: [] };
-    if (!groups[key].eventId && d.eventId) groups[key].eventId = d.eventId;
-    groups[key].records.push(d);
-  });
-  return Object.values(groups).map(g => {
-    const pendingCount = g.records.filter(r => !r.payDate).length;
-    const total = g.records.reduce((s,r) => s + (Number(r.actualAmount)||0), 0);
-    const dancerCount = new Set(g.records.map(r => r.dancer)).size;
-    return { ...g, pendingCount, total, dancerCount };
-  });
-}
-function renderDisbCaseList() {
-  document.getElementById('main').innerHTML = `
-    <div class="panel">
-      <div class="toolbar"><h2>撥款明細</h2><button class="primary" onclick="openBatchDisbForm()">整場活動批次登錄</button></div>
-      <div class="row" style="margin-bottom:10px;">
-        <div class="field" style="flex:2;"><input id="caseSearch" placeholder="搜尋案子名稱" oninput="renderDisbCaseListTable()"></div>
-        <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showFinalizedCases" style="width:auto;" onchange="renderDisbCaseListTable()"> 顯示已全數核定的案子</label></div>
-      </div>
-      <div id="caseListWrap"></div>
-    </div>`;
-  renderDisbCaseListTable();
-}
-function renderDisbCaseListTable() {
-  const q = (document.getElementById('caseSearch')?.value || '').toLowerCase();
-  const showFinalized = document.getElementById('showFinalizedCases')?.checked;
-  let groups = _disbGroups();
-  if (!showFinalized) groups = groups.filter(g => g.pendingCount > 0);
-  if (q) groups = groups.filter(g => g.eventName.toLowerCase().includes(q));
-  groups.sort((a,b) => b.pendingCount - a.pendingCount || a.eventName.localeCompare(b.eventName));
-  document.getElementById('caseListWrap').innerHTML = groups.map(g => `
-    <div class="panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;" onclick='openDisbCase(${JSON.stringify(g.eventName)})'>
-      <div class="toolbar" style="margin-bottom:0;">
-        <div>
-          <b>${g.eventName}</b>
-          <span class="tag" style="margin-left:8px;">${g.dancerCount}位舞者</span>
-          <span class="tag" style="margin-left:4px;">共${g.records.length}筆</span>
-          ${g.pendingCount ? `<span class="tag" style="margin-left:4px;">${g.pendingCount}筆待核定</span>` : '<span class="tag" style="margin-left:4px;">全數已核定 ✓</span>'}
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div style="font-weight:700;">$${money(g.total)}</div>
-          ${g.pendingCount ? `<button class="ghost" onclick='event.stopPropagation();quickFinalizeCase(${JSON.stringify(g.eventName)})'>核定整個案子</button>` : ''}
-        </div>
-      </div>
-    </div>`).join('') || '<div class="panel"><div class="empty">沒有符合的案子</div></div>';
-}
-function quickFinalizeCase(eventName) {
-  showModal(`
-    <h2>核定整個案子</h2>
-    <p style="color:var(--muted);">確認「${eventName}」這場的所有待核定紀錄，金額都已核對無誤。</p>
-    <div class="field"><label>發款日期</label><input id="qf_payDate" type="date"></div>
-    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
-      <button class="primary" onclick='confirmQuickFinalize(${JSON.stringify(eventName)})'>核定並填入發款日期</button></div>
-  `);
-}
-function confirmQuickFinalize(eventName) {
-  const payDate = val('qf_payDate');
-  if (!payDate) { alert('請選擇發款日期'); return; }
-  const g = _disbGroups().find(x => x.eventName === eventName);
-  if (!g) { closeModal(); return; }
-  const ids = g.records.filter(r => !r.payDate).map(r => r.id);
-  apiPost('batchSetPayDate', { ids, payDate }).then(() => { closeModal(); renderDisbursements(); }).catch(showErr);
-}
-function openDisbCase(eventName) {
-  currentDisbCase = eventName;
-  renderDisbCaseDetail(eventName);
-}
-function backToDisbCaseList() {
-  currentDisbCase = null;
-  renderDisbCaseList();
-}
-function renderDisbCaseDetail(eventName) {
-  const groups = _disbGroups();
-  const g = groups.find(x => x.eventName === eventName);
-  if (!g) { backToDisbCaseList(); return; }
-  const paidTotal = g.records.filter(r => r.payDate).reduce((s,r)=>s+(Number(r.actualAmount)||0),0);
-  const pendingTotal = g.total - paidTotal;
-  document.getElementById('main').innerHTML = `
-    <div class="panel">
-      <button class="link" onclick="backToDisbCaseList()">← 返回案子列表</button>
-      <h2 style="margin-top:8px;">${g.eventName}</h2>
-      <div class="grid" style="margin-top:10px;">
-        <div class="stat"><div class="label">應付總額</div><div class="value">$${money(g.total)}</div></div>
-        <div class="stat"><div class="label">已核定</div><div class="value">$${money(paidTotal)}</div></div>
-        <div class="stat"><div class="label">待核定</div><div class="value">$${money(pendingTotal)}</div></div>
-        <div class="stat"><div class="label">舞者人數</div><div class="value">${g.dancerCount}</div></div>
-      </div>
-      <div class="toolbar" style="margin-top:14px;">
-        <div></div>
-        <div><button class="ghost" onclick='openBatchDisbForm(${JSON.stringify({eventName:g.eventName,eventId:g.eventId})})'>整場批次登錄</button>
-        <button class="primary" onclick='openDisbForm(null, ${JSON.stringify({eventName:g.eventName,eventId:g.eventId})})'>＋ 新增這位舞者的撥款</button></div>
-      </div>
-      <div class="row" id="batchBar" style="display:none;align-items:center;background:var(--accent-soft);padding:10px 14px;border-radius:8px;margin:10px 0;">
-        <div style="flex:1;">已選 <span id="batchCount">0</span> 筆</div>
-        <div class="field" style="max-width:180px;"><input id="batchPayDate" type="date"></div>
-        <button class="primary" onclick="applyBatchPayDate()">批次填入發款日期</button>
-      </div>
-      <table>
-        <thead><tr><th><input type="checkbox" id="disbSelectAll" style="width:auto;" onchange="toggleSelectAllDisb(this.checked)"></th><th>舞者</th><th>授款項目</th><th>實領金額</th><th>狀態</th><th></th></tr></thead>
-        <tbody>${g.records.map(d => `
-          <tr>
-            <td><input type="checkbox" class="disbCheck" style="width:auto;" value="${d.id}" onchange="updateBatchBar()"></td>
-            <td>${d.dancer}</td><td>${d.item}</td><td>$${money(d.actualAmount)}</td>
-            <td>${d.payDate ? `<span class="tag">已核定 ${d.payDate}</span>` : '<span class="tag">待核定</span>'}</td>
-            <td><button class="link" onclick='openDisbForm(${JSON.stringify(d)}, ${JSON.stringify({eventName:g.eventName,eventId:g.eventId})})'>編輯</button>
-                <button class="link" onclick="deleteDisb('${d.id}')">刪除</button></td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
-  updateBatchBar();
-}
-function toggleSelectAllDisb(checked) {
-  document.querySelectorAll('.disbCheck').forEach(c => c.checked = checked);
-  updateBatchBar();
-}
-function updateBatchBar() {
-  const checked = document.querySelectorAll('.disbCheck:checked');
-  const bar = document.getElementById('batchBar');
-  if (!bar) return;
-  bar.style.display = checked.length ? 'flex' : 'none';
-  document.getElementById('batchCount').textContent = checked.length;
-}
-function applyBatchPayDate() {
-  const ids = Array.from(document.querySelectorAll('.disbCheck:checked')).map(c => c.value);
-  const payDate = val('batchPayDate');
-  if (!ids.length || !payDate) { alert('請勾選紀錄並選擇日期'); return; }
-  apiPost('batchSetPayDate', { ids, payDate }).then(() => renderDisbursements()).catch(showErr);
-}
-function deleteDisb(id) {
-  if (!confirm('確定刪除這筆撥款紀錄？')) return;
-  apiPost('deleteDisbursement', { id }).then(renderDisbursements).catch(showErr);
-}
-
-// ---------- 整場活動批次登錄 ----------
-function openBatchDisbForm(lockedCase) {
-  const eventOpts = state.events.map(e => `<option value="${e.eventId}" data-name="${e.name}">${e.name}</option>`).join('');
-  showModal(`
-    <h2>整場活動批次登錄</h2>
-    <div class="row">
-      <div class="field"><label>活動</label>
-        ${lockedCase ? `<input value="${lockedCase.eventName}" disabled><input type="hidden" id="b_event" value="${lockedCase.eventId||''}"><input type="hidden" id="b_eventName" value="${lockedCase.eventName}">`
-                     : `<select id="b_event" onchange="renderBatchRows()"><option value="">— 選擇活動 —</option>${eventOpts}</select>`}
-      </div>
-      <div class="field"><label>授款項目</label>
-        <select id="b_item" onchange="renderBatchRows()">
-          ${['舞蹈演出','排練費用','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
-        </select>
-      </div>
-    </div>
-    <div class="row">
-      <div class="field"><label>發款日期（選填，可之後再核定）</label><input id="b_payDate" type="date"></div>
-      <div class="field"><label>備註（套用到全部）</label><input id="b_note"></div>
-    </div>
-    <div id="batchRowsWrap" style="margin-top:12px;max-height:50vh;overflow:auto;"></div>
-    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
-      <button class="primary" onclick="submitBatchDisb()">全部送出</button></div>
-  `);
-  renderBatchRows();
-}
-function renderBatchRows() {
-  const isRehearsal = val('b_item') === '排練費用';
-  const activeDancers = state.dancers.filter(d => d.status === '在職');
-  document.getElementById('batchRowsWrap').innerHTML = `
-    <table>
-      <thead><tr><th>舞者</th><th>抽成比例</th>${isRehearsal ? '<th>時薪</th><th>時數</th>' : '<th>原始報價</th>'}<th>實領金額</th></tr></thead>
-      <tbody>${activeDancers.map((d,i) => `
-        <tr>
-          <td>${d.name}</td>
-          <td><input type="number" step="0.01" id="br_rate_${i}" value="${d.rate}" style="width:70px;" oninput="updateBatchRowAmount(${i})"></td>
-          ${isRehearsal ? `
-            <td><input type="number" id="br_wage_${i}" style="width:80px;" oninput="updateBatchRowAmount(${i})"></td>
-            <td><input type="number" id="br_hours_${i}" style="width:70px;" oninput="updateBatchRowAmount(${i})"></td>
-          ` : `
-            <td><input type="number" id="br_quote_${i}" style="width:100px;" oninput="updateBatchRowAmount(${i})"></td>
-          `}
-          <td id="br_amt_${i}" style="font-weight:700;">$0</td>
-        </tr>`).join('')}
-      </tbody>
-    </table>`;
-}
-function updateBatchRowAmount(i) {
-  const isRehearsal = val('b_item') === '排練費用';
-  let amount = 0;
-  if (isRehearsal) {
-    const wage = Number(document.getElementById(`br_wage_${i}`).value) || 0;
-    const hours = Number(document.getElementById(`br_hours_${i}`).value) || 0;
-    amount = wage * hours;
-  } else {
-    const quote = Number(document.getElementById(`br_quote_${i}`).value) || 0;
-    const rate = Number(document.getElementById(`br_rate_${i}`).value) || 0;
-    amount = Math.round(quote * rate);
+// ---- Load reference data ----
+async function loadCourses(){
+  try{
+    courses = await apiGet('listCourses');
+    setConn(true, '已連線');
+    renderCoursesTable();
+    fillCourseSelects();
+  }catch(e){
+    setConn(false, '連線失敗');
+    document.getElementById('coursesTableWrap').innerHTML = `<div class="empty">${e.message}</div>`;
   }
-  document.getElementById(`br_amt_${i}`).textContent = '$' + money(amount);
 }
-function submitBatchDisb() {
-  const eventId = val('b_event');
-  const eventNameField = document.getElementById('b_eventName');
-  const eventSel = document.getElementById('b_event');
-  const eventName = eventNameField ? eventNameField.value : (eventSel.options[eventSel.selectedIndex]?.dataset.name || eventSel.options[eventSel.selectedIndex]?.text || '');
-  if (!eventName) { alert('請先選擇活動'); return; }
-  const item = val('b_item');
-  const isRehearsal = item === '排練費用';
-  const payDate = val('b_payDate');
-  const note = val('b_note');
-  const activeDancers = state.dancers.filter(d => d.status === '在職');
-  const items = [];
-  activeDancers.forEach((d,i) => {
-    const rate = Number(document.getElementById(`br_rate_${i}`).value) || '';
-    if (isRehearsal) {
-      const wage = Number(document.getElementById(`br_wage_${i}`).value) || 0;
-      const hours = Number(document.getElementById(`br_hours_${i}`).value) || 0;
-      if (wage && hours) items.push({ eventId, eventName, dancer: d.name, item, rate, hourlyWage: wage, hours, payDate, note });
-    } else {
-      const quote = Number(document.getElementById(`br_quote_${i}`).value) || 0;
-      if (quote) items.push({ eventId, eventName, dancer: d.name, item, rate, originalQuote: quote, payDate, note });
-    }
+
+async function loadTeachers(){
+  try{
+    teachers = await apiGet('listTeachers');
+    const sel = document.getElementById('c_teacher');
+    sel.innerHTML = teachers.map(t => `<option value="${t['老師ID']}">${t['姓名']}</option>`).join('');
+  }catch(e){ /* silent, courses load will surface connection errors */ }
+}
+
+function fillCourseSelects(){
+  const opts = courses.map(c => `<option value="${c['課程ID']}">${c['課程名稱']}</option>`).join('');
+  document.getElementById('e_course').innerHTML = opts;
+  document.getElementById('s_course').innerHTML = opts;
+  document.getElementById('f_course').innerHTML = '<option value="">全部課程</option>' + opts;
+}
+
+// ---- 防呆格式化：即使後端回傳未格式化的 ISO 字串，前端也能正常顯示 ----
+function taipeiParts_(d){
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false
   });
-  if (!items.length) { alert('請至少填一位舞者的金額'); return; }
-  if (!confirm(`確定送出 ${items.length} 筆撥款明細？`)) return;
-  apiPost('batchSaveDisbursements', { items }).then(() => { closeModal(); currentDisbCase = eventName; renderDisbursements(); }).catch(showErr);
+  return fmt.formatToParts(d).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+}
+function isRawIso_(v){
+  return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v);
+}
+function fmtDate(v){
+  if(!isRawIso_(v)) return v || '';
+  const p = taipeiParts_(new Date(v));
+  return `${p.year}/${p.month}/${p.day}`;
+}
+function fmtTime(v){
+  if(!isRawIso_(v)) return v || '';
+  const p = taipeiParts_(new Date(v));
+  return `${p.hour}:${p.minute}`;
 }
 
-function openDisbForm(d, lockedCase) {
-  d = d || {};
-  const eventOpts = state.events.map(e => `<option value="${e.eventId}" ${d.eventId===e.eventId?'selected':''}>${e.name}</option>`).join('');
-  const dancerOpts = state.dancers.filter(x => x.status === '在職' || x.name === d.dancer)
-    .map(x => `<option value="${x.name}" ${d.dancer===x.name?'selected':''}>${x.name}${x.status!=='在職'?`（${x.status}）`:''}</option>`).join('');
-  const caseName = lockedCase ? lockedCase.eventName : (d.eventName || '');
-  const caseId = lockedCase ? (lockedCase.eventId || '') : (d.eventId || '');
-  showModal(`
-    <h2>${d.id ? '編輯撥款' : '新增撥款'}</h2>
-    <div class="row">
-      <div class="field"><label>活動</label>
-        ${lockedCase ? `<input value="${caseName}" disabled><input type="hidden" id="f_event" value="${caseId}"><input type="hidden" id="f_eventName" value="${caseName}">`
-                     : `<select id="f_event"><option value="">— 選擇活動 —</option>${eventOpts}</select>`}
-      </div>
-      <div class="field"><label>舞者</label><select id="f_dancer" onchange="prefillRate()"><option value="">— 選擇舞者 —</option>${dancerOpts}</select></div>
-    </div>
-    <div class="row">
-      <div class="field"><label>授款項目</label>
-        <select id="f_item" onchange="toggleItemFields()">
-          ${['排練費用','舞蹈演出','彩排費用','演出費','盯場費用','其他項目','拍攝費用','排練費用','教學','助教協助'].filter((v,i,a)=>a.indexOf(v)===i).map(v=>`<option ${d.item===v?'selected':''}>${v}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field"><label>抽成比例（留空則帶入舞者預設值）</label><input id="f_rate" type="number" step="0.01" value="${d.rate ?? ''}"></div>
-    </div>
-    <div class="row" id="rehearsalFields">
-      <div class="field"><label>排練時薪</label><input id="f_hourlyWage" type="number" value="${d.hourlyWage ?? ''}"></div>
-      <div class="field"><label>排練時數</label><input id="f_hours" type="number" value="${d.hours ?? ''}"></div>
-    </div>
-    <div class="row" id="quoteFields">
-      <div class="field"><label>原始報價</label><input id="f_originalQuote" type="number" value="${d.originalQuote ?? ''}"></div>
-    </div>
-    <div class="row">
-      <div class="field"><label>發款日期</label><input id="f_payDate" type="date" value="${d.payDate||''}"></div>
-      <div class="field"><label>備註</label><input id="f_note" value="${d.note||''}"></div>
-    </div>
-    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
-      <button class="primary" onclick='submitDisb(${JSON.stringify(d.id||'')})'>儲存（自動計算實領金額）</button></div>
-  `);
-  if (!lockedCase) document.getElementById('f_event').value = d.eventId || '';
-  toggleItemFields();
+function renderCoursesTable(){
+  const wrap = document.getElementById('coursesTableWrap');
+  if(courses.length === 0){
+    wrap.innerHTML = '<div class="empty">目前沒有課程，請先在上方新增</div>';
+    return;
+  }
+  const rows = courses.map(c => {
+    const teacher = teachers.find(t => t['老師ID'] === c['老師ID']);
+    const badge = c['狀態'] === '開放' ? 'open' : 'cancel';
+    return `<tr>
+      <td>${c['課程名稱']}</td>
+      <td>${c['類型']}</td>
+      <td>${c['所屬單位']}</td>
+      <td>${teacher ? teacher['姓名'] : c['老師ID']}</td>
+      <td>$${c['堂數費用']}</td>
+      <td>${c['上限人數']} 人</td>
+      <td><span class="badge ${badge}">${c['狀態']}</span></td>
+      <td><button class="ghost" data-toggle="${c['課程ID']}" data-status="${c['狀態'] === '開放' ? '停開' : '開放'}">${c['狀態'] === '開放' ? '停開' : '重新開放'}</button></td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table>
+    <thead><tr><th>課程名稱</th><th>類型</th><th>單位</th><th>老師</th><th>費用</th><th>上限</th><th>狀態</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+  wrap.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      try{
+        await apiPost('toggleCourse', { courseId: btn.dataset.toggle, status: btn.dataset.status });
+        showToast('課程狀態已更新', true);
+        loadCourses();
+      }catch(e){ showToast(e.message, false); }
+    });
+  });
 }
-function toggleItemFields() {
-  const isRehearsal = val('f_item') === '排練費用';
-  document.getElementById('rehearsalFields').style.display = isRehearsal ? 'flex' : 'none';
-  document.getElementById('quoteFields').style.display = isRehearsal ? 'none' : 'flex';
-}
-function prefillRate() {
-  const dancer = state.dancers.find(x => x.name === val('f_dancer'));
-  if (dancer && !val('f_rate')) document.getElementById('f_rate').value = dancer.rate;
-}
-function submitDisb(id) {
-  const eventNameField = document.getElementById('f_eventName');
-  const eventSel = document.getElementById('f_event');
-  const eventName = eventNameField ? eventNameField.value : (eventSel.options[eventSel.selectedIndex]?.text || '');
+
+document.getElementById('addCourseBtn').addEventListener('click', async () => {
   const payload = {
-    id: id || undefined,
-    eventId: val('f_event'), eventName,
-    dancer: val('f_dancer'), item: val('f_item'), rate: val('f_rate') ? Number(val('f_rate')) : '',
-    hourlyWage: Number(val('f_hourlyWage'))||'', hours: Number(val('f_hours'))||'',
-    originalQuote: Number(val('f_originalQuote'))||'', payDate: val('f_payDate'), note: val('f_note')
+    name: document.getElementById('c_name').value.trim(),
+    type: document.getElementById('c_type').value,
+    unit: document.getElementById('c_unit').value,
+    teacherId: document.getElementById('c_teacher').value,
+    price: Number(document.getElementById('c_price').value || 0),
+    durationMin: Number(document.getElementById('c_duration').value || 0),
+    capacity: Number(document.getElementById('c_capacity').value || 0),
+    status: '開放'
   };
-  apiPost('saveDisbursement', payload).then(() => { closeModal(); if (eventName) currentDisbCase = eventName; renderDisbursements(); }).catch(showErr);
+  if(!payload.name){ showToast('請輸入課程名稱', false); return; }
+  try{
+    await apiPost('addCourse', payload);
+    showToast('課程新增成功', true);
+    document.getElementById('c_name').value = '';
+    document.getElementById('c_price').value = '';
+    document.getElementById('c_duration').value = '';
+    document.getElementById('c_capacity').value = '';
+    loadCourses();
+  }catch(e){ showToast(e.message, false); }
+});
+
+// ---- Sessions ----
+document.getElementById('expandBtn').addEventListener('click', async () => {
+  const payload = {
+    courseId: document.getElementById('e_course').value,
+    weekday: Number(document.getElementById('e_weekday').value),
+    startDate: document.getElementById('e_startDate').value,
+    startTime: document.getElementById('e_startTime').value,
+    endTime: document.getElementById('e_endTime').value,
+    room: document.getElementById('e_room').value.trim(),
+    capacity: Number(document.getElementById('e_capacity').value || 0),
+    weeks: Number(document.getElementById('e_weeks').value || 1)
+  };
+  if(!payload.courseId || !payload.startDate || !payload.startTime){
+    showToast('請填寫課程、起始日期與開始時間', false); return;
+  }
+  try{
+    const data = await apiPost('expandSessions', payload);
+    showToast(`已展開 ${data.createdCount} 個場次`, true);
+    loadSessions();
+  }catch(e){ showToast(e.message, false); }
+});
+
+document.getElementById('addSessionBtn').addEventListener('click', async () => {
+  const payload = {
+    courseId: document.getElementById('s_course').value,
+    date: document.getElementById('s_date').value,
+    startTime: document.getElementById('s_startTime').value,
+    endTime: document.getElementById('s_endTime').value,
+    room: document.getElementById('s_room').value.trim(),
+    capacity: Number(document.getElementById('s_capacity').value || 0)
+  };
+  if(!payload.courseId || !payload.date || !payload.startTime){
+    showToast('請填寫課程、日期與開始時間', false); return;
+  }
+  try{
+    await apiPost('addSingleSession', payload);
+    showToast('已加開場次', true);
+    loadSessions();
+  }catch(e){ showToast(e.message, false); }
+});
+
+document.getElementById('filterBtn').addEventListener('click', loadSessions);
+
+async function loadSessions(){
+  const params = {};
+  const courseId = document.getElementById('f_course').value;
+  const startDate = document.getElementById('f_startDate').value;
+  const endDate = document.getElementById('f_endDate').value;
+  if(courseId) params.courseId = courseId;
+  if(startDate) params.startDate = startDate;
+  if(endDate) params.endDate = endDate;
+
+  try{
+    const sessions = await apiGet('listSessions', params);
+    renderSessionsTable(sessions);
+  }catch(e){
+    document.getElementById('sessionsTableWrap').innerHTML = `<div class="empty">${e.message}</div>`;
+  }
 }
 
-// ---------- 簽收單 ----------
-function renderSigning() {
-  const now = new Date();
-  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  document.getElementById('main').innerHTML = `
-    <div class="panel no-print">
-      <h2>舞者簽收單（同一舞者同月合併，暱稱顯示，含稅額／二代健保扣除）</h2>
-      <div class="row">
-        <div class="field"><label>年月</label><input id="s_month" type="month" value="${defaultMonth}"></div>
-        <div class="field" style="align-self:end;"><button class="primary" onclick="loadSigning()">產生本月所有簽收單</button></div>
-        <div class="field" style="align-self:end;"><button class="ghost" onclick="window.print()">列印</button></div>
-      </div>
-      <p style="color:var(--muted);font-size:13px;">金額算法跟勞務報酬單完全一樣（扣繳稅額10%、二代健保2.11%），這裡只是換成暱稱顯示、拿掉身分證字號/地址這些正式報稅才需要的欄位，給舞者簽收確認實拿金額用。</p>
-    </div>
-    <div id="signingResult"></div>`;
-  loadSigning();
-}
-function loadSigning() {
-  const month = val('s_month');
-  apiGet('remuneration', { month }).then(list => {
-    const el = document.getElementById('signingResult');
-    if (!el) return;
-    el.innerHTML = list.length ? list.map(g => `
-      <div class="panel print-sheet">
-        <div class="doc-logo">DANCE SOUL</div>
-        <div class="doc-tagline">THE PROFESSIONAL DANCE STUDIO</div>
-        <h2>舞者老師CASE費簽收單 — ${g.dancer}（${g.month}）</h2>
-        <div class="meta-row">匯款帳號：${g.account || '＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
-        <table>
-          <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
-          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
-        </table>
-        <div class="grid" style="margin-top:14px;">
-          <div class="stat"><div class="label">給付總額</div><div class="value">$${money(g.gross)}</div></div>
-          <div class="stat"><div class="label">扣繳稅額（${Math.round(g.taxRate*100)}%）${g.exemptTax?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.tax)}</div></div>
-          <div class="stat"><div class="label">二代健保（${g.nhiRate*100}%）${g.exemptNhi?'　<span class="tag">免扣</span>':''}</div><div class="value">$${money(g.nhi)}</div></div>
-          <div class="stat"><div class="label">實拿淨額</div><div class="value">$${money(g.net)}</div></div>
-        </div>
-        <p style="margin-top:40px;">主管審核 / __________________</p>
-        <p style="margin-top:24px;">舞者簽名 / __________________</p>
-      </div>`).join('') : '<div class="panel"><div class="empty">這個月沒有撥款紀錄</div></div>';
-  }).catch(showErr);
+function renderSessionsTable(sessions){
+  const wrap = document.getElementById('sessionsTableWrap');
+  if(!sessions || sessions.length === 0){
+    wrap.innerHTML = '<div class="empty">沒有符合條件的場次</div>';
+    return;
+  }
+  const rows = sessions.map(s => {
+    const course = courses.find(c => c['課程ID'] === s['課程ID']);
+    const statusClass = s['狀態'] === '開放' ? 'open' : (s['狀態'] === '額滿' ? 'full' : 'cancel');
+    const disableCancel = s['狀態'] === '取消';
+    return `<tr>
+      <td>${course ? course['課程名稱'] : s['課程ID']}</td>
+      <td>${fmtDate(s['日期'])}</td>
+      <td>${fmtTime(s['開始時間'])} - ${fmtTime(s['結束時間'])}</td>
+      <td>${s['教室/場地'] || ''}</td>
+      <td>${s['已預約人數'] ?? 0} / ${s['上限人數'] || '-'}</td>
+      <td><span class="badge ${statusClass}">${s['狀態']}</span></td>
+      <td>${disableCancel ? '' : `<button class="danger" data-cancel="${s['場次ID']}">取消</button>`}</td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<table>
+    <thead><tr><th>課程</th><th>日期</th><th>時段</th><th>場地</th><th>人數</th><th>狀態</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+  wrap.querySelectorAll('[data-cancel]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if(!confirm('確定要取消這個場次嗎？')) return;
+      try{
+        await apiPost('cancelSession', { sessionId: btn.dataset.cancel });
+        showToast('場次已取消', true);
+        loadSessions();
+      }catch(e){ showToast(e.message, false); }
+    });
+  });
 }
 
-// ---------- 勞務報酬單 ----------
-function renderRemuneration() {
-  const now = new Date();
-  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  document.getElementById('main').innerHTML = `
-    <div class="panel no-print">
-      <h2>勞務報酬單（同一舞者同月合併開單）</h2>
-      <div class="row">
-        <div class="field"><label>年月</label><input id="r_month" type="month" value="${defaultMonth}"></div>
-        <div class="field" style="align-self:end;"><button class="primary" onclick="loadRemuneration()">產生本月所有報酬單</button></div>
-        <div class="field" style="align-self:end;"><button class="ghost" onclick="window.print()">列印</button></div>
-        <div class="field" style="align-self:end;"><button class="ghost" onclick="exportRemunerationCsv()">匯出CSV</button></div>
-      </div>
-      <p style="color:var(--muted);font-size:13px;">扣繳規則：執行業務者之報酬扣繳率 10%，同月給付合計後扣繳稅額未滿 2,000 元（約給付2萬元以下）免扣繳。<br>二代健保補充保費：同月給付合計達 2萬元，整筆金額扣 2.11%；若該舞者以此收入投保健保（已在舞者資料勾選「免扣二代健保」）則不扣。<br>以上是依現行規定設定的預設邏輯，實際認定方式建議與你的記帳士／會計師確認一次。</p>
-    </div>
-    <div id="remunResult"></div>`;
-  loadRemuneration();
-}
-function loadRemuneration() {
-  const month = val('r_month');
-  apiGet('remuneration', { month }).then(list => {
-    state.remunList = list;
-    const el = document.getElementById('remunResult');
-    if (!el) return; // 使用者已切換分頁，這批結果不用再顯示
-    el.innerHTML = list.length ? list.map(g => {
-      const dates = g.rows.map(r=>r.payDate).filter(Boolean).sort();
-      const periodStart = dates[0] || ''; const periodEnd = dates[dates.length-1] || '';
-      const today = new Date().toISOString().slice(0,10);
-      return `
-      <div class="panel print-sheet">
-        <div class="row">
-          <div><b>${g.withholder.name}</b>　統一編號：${g.withholder.taxId||'＿＿＿＿＿＿＿＿'}<br>${g.withholder.address}　${g.withholder.phone}</div>
-        </div>
-        <h2 style="margin-top:12px;">勞務報酬單（${g.month}）</h2>
-        <div class="meta-row">填表日期：${today}</div>
-        <hr style="border:none;border-top:1px solid var(--line);margin:10px 0;">
-        <div class="row">
-          <div>所得人資料　☑本國籍　姓名：${g.realName || `<span style="color:var(--bad,#a4453a);">尚未填真實姓名（暱稱：${g.dancer}）</span>`}</div>
-          <div>身分證字號：${g.idNumber || '＿＿＿＿＿＿＿＿＿＿'}</div>
-        </div>
-        <div class="meta-row">戶籍地址：${g.address || '＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
-        <div class="meta-row">勞務內容期間：自 ${periodStart} 至 ${periodEnd}</div>
-        <div class="meta-row">所得類別：☑ 9A 執行業務所得</div>
-        <table style="margin-top:10px;">
-          <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
-          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
-        </table>
-        <table class="sumtable" style="margin-top:14px;">
-          <tr><td class="slabel" style="width:60%;">支領金額</td><td class="sprice">新台幣 $${money(g.gross)} 元</td></tr>
-          <tr><td class="slabel">代扣所得稅（${Math.round(g.taxRate*100)}%）${g.exemptTax?' <span class="tag">免扣</span>':''}</td><td class="sprice">新台幣 $${money(g.tax)} 元</td></tr>
-          <tr><td class="slabel">二代健保補充保費（${g.nhiRate*100}%）${g.exemptNhi?' <span class="tag">免扣</span>':''}</td><td class="sprice">新台幣 $${money(g.nhi)} 元</td></tr>
-          <tr class="total"><td class="slabel">支領淨額</td><td class="sprice">新台幣 $${money(g.net)} 元</td></tr>
-        </table>
-        <div class="row" style="margin-top:10px;">
-          <div>匯款帳號：${g.account || '＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
-          <div>付款方式：${g.account ? '☑匯款　□現金　□支票' : '□匯款　☑現金　□支票'}</div>
-        </div>
-        <div class="row" style="margin-top:40px;">
-          <div>領款人簽名 / __________________</div>
-          <div>會計/經辦人 / __________________</div>
-        </div>
-      </div>`;
-    }).join('') : '<div class="panel"><div class="empty">這個月沒有撥款紀錄</div></div>';
-  }).catch(showErr);
-}
-function exportRemunerationCsv() {
-  const list = state.remunList || [];
-  const rows = [['月份','暱稱','真實姓名','身分證字號','給付總額','扣繳稅額','二代健保','實付淨額']];
-  list.forEach(g => rows.push([g.month, g.dancer, g.realName, g.idNumber, g.gross, g.tax, g.nhi, g.net]));
-  downloadCsv(rows, `勞務報酬單_${val('r_month')}.csv`);
+async function refreshAll(){
+  if(!API_URL) return;
+  await loadTeachers();
+  await loadCourses();
+  await loadSessions();
 }
 
-// ---------- 年度總表 ----------
-function renderAnnual() {
-  const currentYear = new Date().getFullYear();
-  document.getElementById('main').innerHTML = `
-    <div class="panel no-print">
-      <h2>年度總表（給明年1月申報扣繳憑單參考用）</h2>
-      <div class="row">
-        <div class="field"><label>年度</label><input id="annualYear" type="number" value="${currentYear}"></div>
-        <div class="field" style="align-self:end;"><button class="primary" onclick="loadAnnual()">產生年度總表</button></div>
-        <div class="field" style="align-self:end;"><button class="ghost" onclick="exportAnnualCsv()">匯出CSV</button></div>
-        <div class="field" style="align-self:end;"><button class="ghost" onclick="openNhiExportForm()">產生二代健保申報檔</button></div>
-      </div>
-      <p style="color:var(--muted);font-size:13px;">這裡是用「全年給付總額」重新算一次扣繳稅額/二代健保，供年度彙整參考；正式申報請以每月實際扣繳金額加總為準，有落差建議跟記帳士核對。</p>
-    </div>
-    <div id="annualResult"></div>`;
-  loadAnnual();
-}
-function loadAnnual() {
-  const year = val('annualYear');
-  apiGet('annualSummary', { year }).then(list => {
-    state.annualList = list;
-    document.getElementById('annualResult').innerHTML = `
-      <div class="panel">
-        <table>
-          <thead><tr><th>暱稱</th><th>真實姓名</th><th>身分證字號</th><th>筆數</th><th>給付總額</th><th>扣繳稅額</th><th>二代健保</th><th>實付淨額</th></tr></thead>
-          <tbody>${list.map(g=>`<tr><td>${g.dancer}</td><td>${g.realName||''}</td><td>${g.idNumber||''}</td><td>${g.count}</td><td>$${money(g.gross)}</td><td>$${money(g.tax)}</td><td>$${money(g.nhi)}</td><td>$${money(g.net)}</td></tr>`).join('') || '<tr><td colspan=8 class="empty">這年沒有資料</td></tr>'}</tbody>
-        </table>
-      </div>`;
-  }).catch(showErr);
-}
-function exportAnnualCsv() {
-  const list = state.annualList || [];
-  const rows = [['暱稱','真實姓名','身分證字號','筆數','給付總額','扣繳稅額','二代健保','實付淨額']];
-  list.forEach(g => rows.push([g.dancer, g.realName, g.idNumber, g.count, g.gross, g.tax, g.nhi, g.net]));
-  downloadCsv(rows, `年度總表_${val('annualYear')}.csv`);
-}
-
-// ---------- 二代健保補充保費申報檔（依健保署執行業務收入csv格式規定） ----------
-function openNhiExportForm() {
-  const year = val('annualYear');
-  showModal(`
-    <h2>產生二代健保申報檔（${year}年度）</h2>
-    <p style="color:var(--muted);font-size:13px;">只會列出「有實際扣到二代健保」的舞者（未達門檻或已勾免扣的不會出現，這是依健保署規定，這類本來就不用申報）。以「同一舞者、同一個月」當一筆單次給付，跟系統扣繳邏輯一致。</p>
-    <div class="row">
-      <div class="field"><label>聯絡人姓名</label><input id="n_contact"></div>
-      <div class="field"><label>聯絡電話</label><input id="n_phone"></div>
-    </div>
-    <div class="field"><label>電子郵件信箱</label><input id="n_email" type="email"></div>
-    <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
-      <button class="primary" onclick="downloadNhiExport(${year})">下載申報CSV</button></div>
-  `);
-}
-function _toRocMonth(dateStr) { // 'YYYY-MM' -> 'yyymm'（民國年，5碼）
-  const [y, m] = dateStr.split('-');
-  return String(Number(y) - 1911) + m;
-}
-function _toRocDate(dateStr) { // 'YYYY-MM-DD' -> 'yyymmdd'（民國年，7碼）
-  const [y, m, d] = dateStr.split('-');
-  return String(Number(y) - 1911) + m + d;
-}
-function downloadNhiExport(year) {
-  apiGet('nhiExportRows', { year }).then(rows => {
-    if (!rows.length) { alert('這一年沒有需要申報的紀錄（都是免扣或未達門檻）'); return; }
-    const contact = val('n_contact'), phone = val('n_phone'), email = val('n_email');
-    const startMonth = _toRocMonth(`${year}-01`), endMonth = _toRocMonth(`${year}-12`);
-    const grossTotal = rows.reduce((s,r)=>s+r.gross,0);
-    const nhiTotal = rows.reduce((s,r)=>s+r.nhi,0);
-    const unitLabel = '*資料識別碼,統一編號,所得類別,給付起始年月,給付結束年月,申報總筆數,所得(收入)給付總額,扣繳補充保險費總額,扣費義務人名稱,聯絡電話,電子郵件信箱,聯絡人姓名';
-    const unitRow = ['1','70541606','65',startMonth,endMonth,rows.length,grossTotal,nhiTotal,'靈動力肢體開發有限公司',phone,email,contact].join(',');
-    const detailLabel = '*資料識別碼,處理方式(新增I  覆蓋R),給付日期,所得人身分證號,所得人姓名,單次給付金額,扣繳補充保險費金額,申報編號(詳格式說明),信託註記,資料註記,所得所屬年度,';
-    const detailRows = rows.map(r => ['2','I',_toRocDate(r.payDate),r.idNumber,r.realName||r.dancer,r.gross,r.nhi,'1','','','',''].join(','));
-    const csv = [unitLabel, unitRow, detailLabel, ...detailRows].join('\r\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
-    a.href = url; a.download = `DPR70541606${today}001.csv`; a.click();
-    URL.revokeObjectURL(url);
-    closeModal();
-  }).catch(showErr);
-}
-
-// ---------- 異動紀錄 ----------
-function renderLog() {
-  apiGet('changeLog').then(list => {
-    document.getElementById('main').innerHTML = `
-      <div class="panel">
-        <h2>異動紀錄（協作版最近 ${list.length} 筆操作）</h2>
-        <table>
-          <thead><tr><th>時間</th><th>操作者</th><th>動作</th><th>內容</th></tr></thead>
-          <tbody>${list.map(l=>`<tr><td>${l.time}</td><td>${l.actor}</td><td>${l.action}</td><td>${l.summary}</td></tr>`).join('') || '<tr><td colspan=4 class="empty">尚無紀錄</td></tr>'}</tbody>
-        </table>
-      </div>`;
-  }).catch(showErr);
-}
-
-// ---------- 共用 ----------
-function val(id){ return document.getElementById(id).value; }
-function showModal(html){ document.getElementById('modalBody').innerHTML = html; document.getElementById('modalBg').classList.add('open'); }
-function closeModal(){ document.getElementById('modalBg').classList.remove('open'); }
-function showErr(err){ console.error(err); alert('發生錯誤：' + err.message); }
-
-document.getElementById('modalBg').addEventListener('click', e => { if (e.target.id === 'modalBg') closeModal(); });
-
-// ---------- 啟動 ----------
-renderNav();
-if (API_URL.includes('PASTE_YOUR')) {
-  document.getElementById('apiStatus').textContent = '尚未設定 API 網址';
-  document.getElementById('main').innerHTML = '<div class="panel"><div class="empty">請先在 index.html 把 API_URL 換成你部署好的 Apps Script 網頁應用程式網址。</div></div>';
-} else {
-  document.getElementById('apiStatus').textContent = '已連線';
-  render();
-}
+refreshAll();
 </script>
+
 </body>
 </html>
