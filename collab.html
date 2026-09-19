@@ -88,6 +88,7 @@ const ITEM_TYPES = {
 };
 const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數'};
 let pendingExemptTax = false;
+let pendingResidencyStatus = '境內居住者';
 const TABS = [ ['events', '活動報價'], ['dancers', '舞者資料'], ['adddisb', '新增費用明細'] ];
 
 function apiGet(action, params={}) {
@@ -380,6 +381,7 @@ function applyBatchDancerStatus(status) {
 function openDancerForm(d) {
   d = d || {};
   pendingExemptTax = !!d.exemptTax; // 這欄不開放同事編輯，只是原值原封不動存回去，避免被洗掉
+  pendingResidencyStatus = d.residencyStatus || '境內居住者'; // 身分別會影響扣繳規則，不開放同事編輯，原值原封不動存回去
   showModal(`
     <h2>${d.name ? '編輯舞者' : '新增舞者'}</h2>
     <div class="row">
@@ -391,6 +393,7 @@ function openDancerForm(d) {
       <div class="field"><label>抽成比例（0~1，例如 0.7）</label><input id="f_rate" type="number" step="0.01" value="${d.rate ?? ''}"></div>
     </div>
     <div class="row">
+      <div class="field"><label>護照號碼（境外人士無身分證字號時填）</label><input id="f_passportNumber" value="${d.passportNumber||''}"></div>
       <div class="field"><label>狀態</label>
         <select id="f_status"><option ${d.status==='在職'?'selected':''}>在職</option><option ${d.status==='閒置'?'selected':''}>閒置</option><option ${d.status==='離職'?'selected':''}>離職</option></select>
       </div>
@@ -400,6 +403,7 @@ function openDancerForm(d) {
     <div class="field" style="margin-top:4px;">
       <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_exemptNhi" style="width:auto;" ${d.exemptNhi?'checked':''}> 已透過職業工會用這筆收入投保健保（免扣二代健保補充保費）</label>
     </div>
+    ${d.residencyStatus==='非居住者' ? '<p style="color:var(--muted);font-size:13px;">此舞者身分別為「非居住者」，適用20%扣繳率，如需更改請跟主管確認。</p>' : ''}
     <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
       <button class="primary" onclick='submitDancer(${JSON.stringify(d.name||'')})'>儲存</button></div>
   `);
@@ -409,8 +413,10 @@ function submitDancer(originalName) {
     originalName,
     name: val('f_name'), realName: val('f_realName'), idNumber: val('f_idNumber'), address: val('f_address'), rate: Number(val('f_rate')), account: val('f_account'),
     status: val('f_status'),
+    passportNumber: val('f_passportNumber'),
     exemptNhi: document.getElementById('f_exemptNhi').checked,
-    exemptTax: pendingExemptTax
+    exemptTax: pendingExemptTax,
+    residencyStatus: pendingResidencyStatus
   };
   apiPost('staffSaveDancer', payload).then(() => { closeModal(); renderDancers(); }).catch(showErr);
 }
