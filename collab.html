@@ -504,7 +504,7 @@ function openScopedAddForm(lockedCase) {
     <div class="row">
       <div class="field"><label>授款項目</label>
         <select id="s_item" onchange="toggleScopedItemFields()">
-          ${['排練費用','舞蹈演出','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
+          ${['排練費用','舞蹈演出','彩排費用','演出費','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
         </select>
       </div>
       <div class="field"><label>抽成比例（留空則帶入舞者預設值）</label><input id="s_rate" type="number" step="0.01"></div>
@@ -552,7 +552,7 @@ function openBatchDisbForm(lockedCase) {
     </div>
     <div class="field"><label>授款項目</label>
       <select id="b_item" onchange="renderBatchRows()">
-        ${['舞蹈演出','排練費用','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
+        ${['舞蹈演出','排練費用','彩排費用','演出費','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
       </select>
     </div>
     <div class="field"><label>備註（套用到全部）</label><input id="b_note"></div>
@@ -640,7 +640,7 @@ function openEditPending(r) {
     <div class="row">
       <div class="field"><label>授款項目</label>
         <select id="p_item" onchange="togglePendingItemFields()">
-          ${['排練費用','舞蹈演出','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option ${r.item===v?'selected':''}>${v}</option>`).join('')}
+          ${['排練費用','舞蹈演出','彩排費用','演出費','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option ${r.item===v?'selected':''}>${v}</option>`).join('')}
         </select>
       </div>
       <div class="field"><label>抽成比例</label><input id="p_rate" type="number" step="0.01" value="${r.rate ?? ''}"></div>

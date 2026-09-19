@@ -724,7 +724,7 @@ function openBatchDisbForm(lockedCase) {
       </div>
       <div class="field"><label>授款項目</label>
         <select id="b_item" onchange="renderBatchRows()">
-          ${['舞蹈演出','排練費用','彩排費用','演出費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
+          ${['舞蹈演出','排練費用','彩排費用','演出費','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
         </select>
       </div>
     </div>
@@ -820,7 +820,7 @@ function openDisbForm(d, lockedCase) {
     <div class="row">
       <div class="field"><label>授款項目</label>
         <select id="f_item" onchange="toggleItemFields()">
-          ${['排練費用','舞蹈演出','彩排費用','演出費','盯場費用','其他項目','拍攝費用','排練費用','教學','助教協助'].filter((v,i,a)=>a.indexOf(v)===i).map(v=>`<option ${d.item===v?'selected':''}>${v}</option>`).join('')}
+          ${['排練費用','舞蹈演出','彩排費用','演出費','編舞費','助教費','盯場費用','其他項目','拍攝費用','排練費用','教學','助教協助'].filter((v,i,a)=>a.indexOf(v)===i).map(v=>`<option ${d.item===v?'selected':''}>${v}</option>`).join('')}
         </select>
       </div>
       <div class="field"><label>抽成比例（留空則帶入舞者預設值）</label><input id="f_rate" type="number" step="0.01" value="${d.rate ?? ''}"></div>
