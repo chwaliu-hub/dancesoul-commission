@@ -158,12 +158,36 @@ function renderDashboard() {
         </div>
       </div>
       <div class="panel">
+        <div class="toolbar"><h2>每月舞者領款</h2>
+          <div class="field" style="max-width:160px;"><input id="dashMonth" type="month" value="${d.thisMonth}" onchange="loadMonthlyDancerTotals()"></div>
+        </div>
+        <div id="monthlyDancerWrap"></div>
+      </div>
+      <div class="panel">
         <h2>累計撥款前 10 名舞者</h2>
         <table>
           <thead><tr><th>舞者</th><th>累計實領金額</th></tr></thead>
           <tbody>${d.topDancers.map(t=>`<tr><td>${t.name}</td><td>$${money(t.total)}</td></tr>`).join('') || '<tr><td colspan=2 class="empty">尚無資料</td></tr>'}</tbody>
         </table>
       </div>`;
+    loadMonthlyDancerTotals();
+  }).catch(showErr);
+}
+function loadMonthlyDancerTotals() {
+  const month = val('dashMonth');
+  const wrap = document.getElementById('monthlyDancerWrap');
+  if (!wrap) return;
+  apiGet('remuneration', { month }).then(list => {
+    const wrapNow = document.getElementById('monthlyDancerWrap');
+    if (!wrapNow) return; // 使用者已切換分頁
+    const sorted = list.slice().sort((a,b) => b.gross - a.gross);
+    const monthTotal = sorted.reduce((s,g) => s + (Number(g.gross)||0), 0);
+    wrapNow.innerHTML = `
+      <table>
+        <thead><tr><th>舞者</th><th>給付總額</th><th>實領淨額</th></tr></thead>
+        <tbody>${sorted.map(g=>`<tr><td>${g.dancer}</td><td>$${money(g.gross)}</td><td>$${money(g.net)}</td></tr>`).join('') || '<tr><td colspan=3 class="empty">這個月沒有撥款紀錄</td></tr>'}</tbody>
+        ${sorted.length ? `<tfoot><tr style="font-weight:700;"><td>合計</td><td>$${money(monthTotal)}</td><td></td></tr></tfoot>` : ''}
+      </table>`;
   }).catch(showErr);
 }
 
@@ -895,7 +919,7 @@ function loadSigning() {
         <div class="meta-row">匯款帳號：${g.account || '＿＿＿＿＿＿＿＿＿＿＿＿'}</div>
         <table>
           <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
-          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
+          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}${r.item==='排練費用'&&r.hourlyWage&&r.hours?`<br><span style="color:var(--muted);font-size:12px;">時薪$${money(r.hourlyWage)} × ${r.hours}小時</span>`:''}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
         </table>
         <div class="grid" style="margin-top:14px;">
           <div class="stat"><div class="label">給付總額</div><div class="value">$${money(g.gross)}</div></div>
@@ -954,7 +978,7 @@ function loadRemuneration() {
         <div class="meta-row">所得類別：☑ 9A 執行業務所得</div>
         <table style="margin-top:10px;">
           <thead><tr><th>日期</th><th>活動名稱</th><th>授款項目</th><th>金額</th></tr></thead>
-          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
+          <tbody>${g.rows.map(r=>`<tr><td>${r.payDate}</td><td>${r.eventName}</td><td>${r.item}${r.item==='排練費用'&&r.hourlyWage&&r.hours?`<br><span style="color:var(--muted);font-size:12px;">時薪$${money(r.hourlyWage)} × ${r.hours}小時</span>`:''}</td><td>$${money(r.actualAmount)}</td></tr>`).join('')}</tbody>
         </table>
         <table class="sumtable" style="margin-top:14px;">
           <tr><td class="slabel" style="width:60%;">支領金額</td><td class="sprice">新台幣 $${money(g.gross)} 元</td></tr>
