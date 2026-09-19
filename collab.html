@@ -488,7 +488,7 @@ function renderPendingCaseDetail(eventName) {
         <thead><tr><th>舞者</th><th>授款項目</th><th>金額</th><th>備註</th><th></th></tr></thead>
         <tbody>${g.records.map(r => `
           <tr>
-            <td>${r.dancer}</td><td>${r.item}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td>
+            <td>${r.dancer}</td><td>${r.item}${r.item==='排練費用'&&r.hourlyWage&&r.hours?`<br><span style="color:var(--muted);font-size:12px;">時薪$${money(r.hourlyWage)} × ${r.hours}小時</span>`:''}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td>
             <td><button class="link" onclick='openEditPending(${JSON.stringify(r)})'>編輯</button>
                 <button class="link" onclick="deletePending('${r.id}')">刪除</button></td>
           </tr>`).join('')}

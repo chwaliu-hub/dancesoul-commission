@@ -680,7 +680,7 @@ function renderDisbCaseDetail(eventName) {
         <tbody>${g.records.map(d => `
           <tr>
             <td><input type="checkbox" class="disbCheck" style="width:auto;" value="${d.id}" onchange="updateBatchBar()"></td>
-            <td>${d.dancer}</td><td>${d.item}</td><td>$${money(d.actualAmount)}</td>
+            <td>${d.dancer}</td><td>${d.item}${d.item==='排練費用'&&d.hourlyWage&&d.hours?`<br><span style="color:var(--muted);font-size:12px;">時薪$${money(d.hourlyWage)} × ${d.hours}小時</span>`:''}</td><td>$${money(d.actualAmount)}</td>
             <td>${d.payDate ? `<span class="tag">已核定 ${d.payDate}</span>` : '<span class="tag">待核定</span>'}</td>
             <td><button class="link" onclick='openDisbForm(${JSON.stringify(d)}, ${JSON.stringify({eventName:g.eventName,eventId:g.eventId})})'>編輯</button>
                 <button class="link" onclick="deleteDisb('${d.id}')">刪除</button></td>
