@@ -173,6 +173,7 @@ function renderDashboard() {
     loadMonthlyDancerTotals();
   }).catch(showErr);
 }
+let monthlyRemunList = [];
 function loadMonthlyDancerTotals() {
   const month = val('dashMonth');
   const wrap = document.getElementById('monthlyDancerWrap');
@@ -180,15 +181,50 @@ function loadMonthlyDancerTotals() {
   apiGet('remuneration', { month }).then(list => {
     const wrapNow = document.getElementById('monthlyDancerWrap');
     if (!wrapNow) return; // 使用者已切換分頁
+    monthlyRemunList = list;
     const sorted = list.slice().sort((a,b) => b.gross - a.gross);
     const monthTotal = sorted.reduce((s,g) => s + (Number(g.gross)||0), 0);
+
+    const transferList = sorted.filter(g => g.account).sort((a,b) => b.net - a.net);
+    const cashList = sorted.filter(g => !g.account).sort((a,b) => b.net - a.net);
+    const transferTotal = transferList.reduce((s,g) => s + (Number(g.net)||0), 0);
+    const cashTotal = cashList.reduce((s,g) => s + (Number(g.net)||0), 0);
+
     wrapNow.innerHTML = `
       <table>
         <thead><tr><th>舞者</th><th>給付總額</th><th>實領淨額</th></tr></thead>
         <tbody>${sorted.map(g=>`<tr><td>${g.dancer}</td><td>$${money(g.gross)}</td><td>$${money(g.net)}</td></tr>`).join('') || '<tr><td colspan=3 class="empty">這個月沒有撥款紀錄</td></tr>'}</tbody>
         ${sorted.length ? `<tfoot><tr style="font-weight:700;"><td>合計</td><td>$${money(monthTotal)}</td><td></td></tr></tfoot>` : ''}
-      </table>`;
+      </table>
+      ${sorted.length ? `
+      <div class="row" style="margin-top:18px;">
+        <h3 style="margin:0;">薪轉名單（有匯款帳號）</h3>
+        <button class="ghost" style="margin-left:auto;" onclick="exportMonthlyPayList('transfer')">匯出CSV</button>
+      </div>
+      <table style="margin-top:6px;">
+        <thead><tr><th>舞者</th><th>真實姓名</th><th>匯款帳號</th><th>實領淨額</th></tr></thead>
+        <tbody>${transferList.map(g=>`<tr><td>${g.dancer}</td><td>${g.realName||''}</td><td>${g.account}</td><td>$${money(g.net)}</td></tr>`).join('') || '<tr><td colspan=4 class="empty">這個月沒有要匯款的</td></tr>'}</tbody>
+        ${transferList.length ? `<tfoot><tr style="font-weight:700;"><td colspan=3>合計</td><td>$${money(transferTotal)}</td></tr></tfoot>` : ''}
+      </table>
+      <div class="row" style="margin-top:18px;">
+        <h3 style="margin:0;">領現名單（無匯款帳號）</h3>
+        <button class="ghost" style="margin-left:auto;" onclick="exportMonthlyPayList('cash')">匯出CSV</button>
+      </div>
+      <table style="margin-top:6px;">
+        <thead><tr><th>舞者</th><th>真實姓名</th><th>實領淨額</th></tr></thead>
+        <tbody>${cashList.map(g=>`<tr><td>${g.dancer}</td><td>${g.realName||''}</td><td>$${money(g.net)}</td></tr>`).join('') || '<tr><td colspan=3 class="empty">這個月沒有要領現的</td></tr>'}</tbody>
+        ${cashList.length ? `<tfoot><tr style="font-weight:700;"><td colspan=2>合計</td><td>$${money(cashTotal)}</td></tr></tfoot>` : ''}
+      </table>` : ''}`;
   }).catch(showErr);
+}
+function exportMonthlyPayList(kind) {
+  const month = val('dashMonth');
+  const list = kind === 'transfer' ? monthlyRemunList.filter(g => g.account) : monthlyRemunList.filter(g => !g.account);
+  if (!list.length) { alert('這個月沒有這個類別的資料'); return; }
+  const rows = kind === 'transfer'
+    ? [['暱稱','真實姓名','匯款帳號','實領淨額'], ...list.map(g => [g.dancer, g.realName||'', g.account, g.net])]
+    : [['暱稱','真實姓名','實領淨額'], ...list.map(g => [g.dancer, g.realName||'', g.net])];
+  downloadCsv(rows, `${kind==='transfer'?'薪轉名單':'領現名單'}_${month}.csv`);
 }
 
 // ---------- 舞者資料 ----------
