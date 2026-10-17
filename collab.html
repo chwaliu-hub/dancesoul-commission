@@ -77,15 +77,16 @@ const STAFF_TOKEN = 'dancesoul2026case';
 const state = { tab: 'events', dancers: [], events: [] };
 const ITEM_TYPES = {
   '排練費用': ['hourlyWage','hours','qty'],
-  '舞蹈演出': ['unitPrice','qty'],
+  '教室費用': ['hourlyWage','hours','qty'],
+  '舞蹈演出': ['unitPrice','qty','songs'],
   '彩排費用': ['unitPrice','qty'],
-  '演出費': ['unitPrice','qty','songs'],
   '盯場費用': ['unitPrice','qty'],
   '拍攝費用': ['unitPrice','qty'],
   '教學': ['unitPrice','qty'],
   '助教協助': ['unitPrice','qty'],
   '其他項目': ['unitPrice','qty']
 };
+const normItemType = t => t === '演出費' ? '舞蹈演出' : t;
 const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數'};
 let pendingExemptTax = false;
 let pendingResidencyStatus = '境內居住者';
@@ -153,7 +154,7 @@ function renderEvents() {
 let editingItems = [];
 function openEventForm(e) {
   e = e || {};
-  editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)) : [{type:'演出費',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}];
+  editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)).map(it => Object.assign(it, {type: normItemType(it.type)})) : [{type:'舞蹈演出',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}];
   showModal(`
     <h2>${e.eventId ? '編輯活動' : '新增活動'}</h2>
     <div class="row">
@@ -190,7 +191,7 @@ function toggleOverseasFields() {
 }
 function renderItemsList() {
   document.getElementById('itemsList').innerHTML = editingItems.map((it,i) => {
-    const type = it.type || '演出費';
+    const type = normItemType(it.type) || '舞蹈演出';
     const fields = ITEM_TYPES[type];
     return `
     <div class="item-row-v2">
@@ -218,7 +219,7 @@ function setItemType(i, type) {
 }
 function recalcItemAmount(i) {
   const it = editingItems[i];
-  const fields = ITEM_TYPES[it.type || '演出費'];
+  const fields = ITEM_TYPES[normItemType(it.type) || '舞蹈演出'];
   let amount = 1;
   fields.forEach(f => {
     const def = (f === 'qty' || f === 'hours' || f === 'songs') ? 1 : 0;
@@ -232,7 +233,7 @@ function updateItemAmount(i, field, value) {
   editingItems[i][field] = value;
   recalcItemAmount(i);
 }
-function addItemRow(){ editingItems.push({type:'演出費',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}); renderItemsList(); }
+function addItemRow(){ editingItems.push({type:'舞蹈演出',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}); renderItemsList(); }
 function removeItemRow(i){ editingItems.splice(i,1); renderItemsList(); }
 function submitEvent(eventId) {
   const payload = {
@@ -301,7 +302,7 @@ function printQuote(eventId) {
       <colgroup><col class="label"><col class="price"></colgroup>
       <thead><tr><th>Request Payment</th><th>Price.</th></tr></thead>
       <tbody>${e.items.map(it=>{
-        const type = it.type || '演出費';
+        const type = normItemType(it.type) || '舞蹈演出';
         const label = type === '其他項目' ? (it.customLabel || '其他項目') : type;
         const fields = ITEM_TYPES[type] || [];
         const rate = it.unitPrice || it.hourlyWage;
@@ -488,7 +489,7 @@ function renderPendingCaseDetail(eventName) {
         <thead><tr><th>舞者</th><th>授款項目</th><th>金額</th><th>備註</th><th></th></tr></thead>
         <tbody>${g.records.map(r => `
           <tr>
-            <td>${r.dancer}</td><td>${r.item}${r.item==='排練費用'&&r.hourlyWage&&r.hours?`<br><span style="color:var(--muted);font-size:12px;">時薪$${money(r.hourlyWage)} × ${r.hours}小時</span>`:''}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td>
+            <td>${r.dancer}</td><td>${r.item}${['排練費用','教室費用'].includes(r.item)&&r.hourlyWage&&r.hours?`<br><span style="color:var(--muted);font-size:12px;">時薪$${money(r.hourlyWage)} × ${r.hours}小時</span>`:''}</td><td>$${money(r.actualAmount)}</td><td>${r.note||''}</td>
             <td><button class="link" onclick='openEditPending(${JSON.stringify(r)})'>編輯</button>
                 <button class="link" onclick="deletePending('${r.id}')">刪除</button></td>
           </tr>`).join('')}
@@ -504,7 +505,7 @@ function openScopedAddForm(lockedCase) {
     <div class="row">
       <div class="field"><label>授款項目</label>
         <select id="s_item" onchange="toggleScopedItemFields()">
-          ${['排練費用','舞蹈演出','彩排費用','演出費','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
+          ${['排練費用','教室費用','舞蹈演出','彩排費用','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
         </select>
       </div>
       <div class="field"><label>抽成比例（留空則帶入舞者預設值）</label><input id="s_rate" type="number" step="0.01"></div>
@@ -523,7 +524,7 @@ function openScopedAddForm(lockedCase) {
   toggleScopedItemFields();
 }
 function toggleScopedItemFields() {
-  const isRehearsal = val('s_item') === '排練費用';
+  const isRehearsal = ['排練費用','教室費用'].includes(val('s_item'));
   document.getElementById('s_rehearsalFields').style.display = isRehearsal ? 'flex' : 'none';
   document.getElementById('s_quoteFields').style.display = isRehearsal ? 'none' : 'flex';
 }
@@ -552,7 +553,7 @@ function openBatchDisbForm(lockedCase) {
     </div>
     <div class="field"><label>授款項目</label>
       <select id="b_item" onchange="renderBatchRows()">
-        ${['舞蹈演出','排練費用','彩排費用','演出費','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
+        ${['舞蹈演出','排練費用','教室費用','彩排費用','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option>${v}</option>`).join('')}
       </select>
     </div>
     <div class="field"><label>備註（套用到全部）</label><input id="b_note"></div>
@@ -564,7 +565,7 @@ function openBatchDisbForm(lockedCase) {
   renderBatchRows();
 }
 function renderBatchRows() {
-  const isRehearsal = val('b_item') === '排練費用';
+  const isRehearsal = ['排練費用','教室費用'].includes(val('b_item'));
   const activeDancers = state.dancers.filter(d => d.status === '在職');
   document.getElementById('batchRowsWrap').innerHTML = `
     <table>
@@ -585,7 +586,7 @@ function renderBatchRows() {
     </table>`;
 }
 function updateBatchRowAmount(i) {
-  const isRehearsal = val('b_item') === '排練費用';
+  const isRehearsal = ['排練費用','教室費用'].includes(val('b_item'));
   let amount = 0;
   if (isRehearsal) {
     const wage = Number(document.getElementById(`br_wage_${i}`).value) || 0;
@@ -605,7 +606,7 @@ function submitBatchDisb() {
   const eventName = eventNameField ? eventNameField.value : (eventSel.options[eventSel.selectedIndex]?.dataset.name || eventSel.options[eventSel.selectedIndex]?.text || '');
   if (!eventName) { alert('請先選擇活動'); return; }
   const item = val('b_item');
-  const isRehearsal = item === '排練費用';
+  const isRehearsal = ['排練費用','教室費用'].includes(item);
   const note = val('b_note');
   const activeDancers = state.dancers.filter(d => d.status === '在職');
   const items = [];
@@ -640,7 +641,7 @@ function openEditPending(r) {
     <div class="row">
       <div class="field"><label>授款項目</label>
         <select id="p_item" onchange="togglePendingItemFields()">
-          ${['排練費用','舞蹈演出','彩排費用','演出費','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option ${r.item===v?'selected':''}>${v}</option>`).join('')}
+          ${['排練費用','教室費用','舞蹈演出','彩排費用','編舞費','助教費','盯場費用','其他項目','拍攝費用','教學','助教協助'].map(v=>`<option ${normItemType(r.item)===v?'selected':''}>${v}</option>`).join('')}
         </select>
       </div>
       <div class="field"><label>抽成比例</label><input id="p_rate" type="number" step="0.01" value="${r.rate ?? ''}"></div>
@@ -659,7 +660,7 @@ function openEditPending(r) {
   togglePendingItemFields();
 }
 function togglePendingItemFields() {
-  const isRehearsal = document.getElementById('p_item').value === '排練費用';
+  const isRehearsal = ['排練費用','教室費用'].includes(document.getElementById('p_item').value);
   document.getElementById('p_rehearsalFields').style.display = isRehearsal ? 'flex' : 'none';
   document.getElementById('p_quoteFields').style.display = isRehearsal ? 'none' : 'flex';
 }
