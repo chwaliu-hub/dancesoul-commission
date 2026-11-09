@@ -321,7 +321,7 @@ function printQuote(eventId) {
       ${e.discount ? `<tr><td class="slabel">折讓</td><td class="sprice"><div class="price-cell"><span>NT$</span><span>-${money(e.discount)}</span></div></td></tr>` : ''}
       <tr><td class="slabel">Tax</td><td class="sprice"><div class="price-cell"><span></span><span>${e.tax?money(e.tax):''}</span></div></td></tr>
       <tr class="total"><td class="slabel">Total</td><td class="sprice"><div class="price-cell"><span>NT$</span><span>${money(e.total)}</span></div></td></tr>
-      ${e.isOverseas ? `<tr class="rmb"><td class="slabel">換算人民幣</td><td class="sprice"><div class="price-cell"><span>CNY</span><span>${money(e.rmbAmount)}</span></div></td></tr>` : ''}
+      ${(e.isOverseas && e.rmbAmount) ? `<tr class="rmb"><td class="slabel">換算人民幣</td><td class="sprice"><div class="price-cell"><span>CNY</span><span>${money(e.rmbAmount)}</span></div></td></tr>` : ''}
     </table>
     <div class="bank-box">
       公司名稱　　：靈動力肢體開發有限公司<br>Account Name　：${B.accountNameEn}<br>
