@@ -80,7 +80,7 @@ const ITEM_TYPES = {
   '排練費用': ['hourlyWage','hours','qty'],
   '教室費用': ['hourlyWage','hours','qty'],
   '舞蹈演出': ['unitPrice','qty','songs'],
-  '彩排費用': ['unitPrice','qty'],
+  '彩排費用': ['unitPrice','days','qty'],
   '盯場費用': ['unitPrice','qty'],
   '拍攝費用': ['unitPrice','qty'],
   '教學': ['unitPrice','qty'],
@@ -90,7 +90,7 @@ const ITEM_TYPES = {
   '其他項目': ['unitPrice','qty']
 };
 const normItemType = t => t === '演出費' ? '舞蹈演出' : t;
-const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數'};
+const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數', days:'天數'};
 let pendingExemptTax = false;
 let pendingResidencyStatus = '境內居住者';
 const TABS = [ ['events', '活動報價'], ['dancers', '舞者資料'], ['adddisb', '新增費用明細'] ];
@@ -207,7 +207,7 @@ function renderItemsList() {
       </div>
       <div class="item-row-line2">
         ${fields.map(f => `
-          <span class="field-mini"><label>${FIELD_LABEL[f]}</label><input type="number" value="${it[f] ?? (f==='qty'||f==='hours'||f==='songs'?1:'')}" oninput="updateItemAmount(${i}, '${f}', this.value)"></span>
+          <span class="field-mini"><label>${FIELD_LABEL[f]}</label><input type="number" value="${it[f] ?? (f==='qty'||f==='hours'||f==='songs'||f==='days'?1:'')}" oninput="updateItemAmount(${i}, '${f}', this.value)"></span>
         `).join('')}
         <span class="field-mini"><label>金額</label><input type="number" id="itemAmt_${i}" value="${it.amount||0}" style="font-weight:700;" oninput="editingItems[${i}].amount=Number(this.value)||0"></span>
         <button class="link" onclick="removeItemRow(${i})">✕ 刪除</button>
@@ -225,7 +225,7 @@ function recalcItemAmount(i) {
   const fields = ITEM_TYPES[normItemType(it.type) || '舞蹈演出'];
   let amount = 1;
   fields.forEach(f => {
-    const def = (f === 'qty' || f === 'hours' || f === 'songs') ? 1 : 0;
+    const def = (f === 'qty' || f === 'hours' || f === 'songs' || f === 'days') ? 1 : 0;
     amount *= (Number(it[f]) ?? def) || def;
   });
   it.amount = amount;
@@ -312,7 +312,8 @@ function printQuote(eventId) {
         let breakdown = rate ? `$${money(rate)}` : '';
         if (fields.includes('qty') && it.qty && it.qty != 1) breakdown += ` × ${it.qty}人`;
         if (fields.includes('hours') && it.hours) breakdown += ` × ${it.hours}時數`;
-        if (fields.includes('songs') && it.songs && it.songs != 1) breakdown += ` × ${it.songs}首`;
+        if (fields.includes('days') && it.days && it.days != 1) breakdown += ` × ${it.days}天`;
+          if (fields.includes('songs') && it.songs && it.songs != 1) breakdown += ` × ${it.songs}首`;
         return `<tr><td>${label}${it.note?`（${it.note}）`:''}${breakdown?` <span style="color:#888;font-size:11px;">(${breakdown})</span>`:''}</td><td><div class="price-cell"><span>NT$</span><span>${money(it.amount)}</span></div></td></tr>`;
       }).join('')}</tbody>
     </table>
