@@ -183,6 +183,7 @@ function openEventForm(e) {
     <div class="row" id="overseasFields" style="display:${e.isOverseas?'flex':'none'};">
       <div class="field"><label>Invoice #</label><input id="f_invoiceNo" value="${e.invoiceNo||''}"></div>
       <div class="field"><label>換算人民幣金額</label><input id="f_rmbAmount" type="number" value="${e.rmbAmount||''}"></div>
+      <div class="field" style="flex-basis:100%;"><label>客戶公司地址</label><input id="f_clientAddress" value="${(e.clientAddress||'').replace(/"/g,'&quot;')}"></div>
     </div>
     <div class="toolbar"><button class="ghost" onclick="closeModal()">取消</button>
       <button class="primary" onclick='submitEvent(${JSON.stringify(e.eventId||'')})'>儲存</button></div>
@@ -245,7 +246,7 @@ function submitEvent(eventId) {
     items: editingItems.filter(it => it.label || it.amount),
     discount: Number(val('f_discount')) || 0, taxRate: Number(val('f_taxRate')) || 0,
     isOverseas: document.getElementById('f_isOverseas').checked,
-    invoiceNo: val('f_invoiceNo'), rmbAmount: val('f_rmbAmount') ? Number(val('f_rmbAmount')) : ''
+    invoiceNo: val('f_invoiceNo'), rmbAmount: val('f_rmbAmount') ? Number(val('f_rmbAmount')) : '', clientAddress: val('f_clientAddress')
   };
   apiPost('staffSaveEvent', payload).then(() => { closeModal(); renderEvents(); }).catch(showErr);
 }
@@ -300,6 +301,7 @@ function printQuote(eventId) {
     <div class="addr-block">台灣 台北市大安區<br>仁愛路四段425-1號3樓<br>電話 :886-2-27512868</div>
     <hr>
     <div class="meta-row">公司名稱：${e.client||''}</div>
+    ${(e.isOverseas && e.clientAddress) ? `<div class="meta-row">公司地址：${e.clientAddress}</div>` : ''}
     <div class="meta-row">活動時間：${e.date||''}</div>
     <table>
       <colgroup><col class="label"><col class="price"></colgroup>

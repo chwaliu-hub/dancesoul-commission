@@ -406,7 +406,7 @@ function quickToggleEvent(eventId, field, value) {
   apiPost('saveEvent', {
     eventId: e.eventId, name: e.name, date: e.date, client: e.client, status: e.status,
     items: e.items, discount: e.discount, taxRate: e.subtotal ? (e.tax / (e.subtotal - e.discount) || 0) : 0,
-    isOverseas: e.isOverseas, invoiceNo: e.invoiceNo, rmbAmount: e.rmbAmount,
+    isOverseas: e.isOverseas, invoiceNo: e.invoiceNo, rmbAmount: e.rmbAmount, clientAddress: e.clientAddress,
     paidByClient: e.paidByClient, commissionPaid: e.commissionPaid,
     paidDate: e.paidDate || '', paidMethod: e.paidMethod || ''
   }).then(() => renderEventsTable()).catch(showErr);
@@ -441,6 +441,7 @@ function openEventForm(e) {
     <div class="row" id="overseasFields" style="display:${e.isOverseas?'flex':'none'};">
       <div class="field"><label>Invoice #（自行填入）</label><input id="f_invoiceNo" value="${e.invoiceNo||''}"></div>
       <div class="field"><label>換算人民幣金額</label><input id="f_rmbAmount" type="number" value="${e.rmbAmount||''}"></div>
+      <div class="field" style="flex-basis:100%;"><label>客戶公司地址</label><input id="f_clientAddress" value="${(e.clientAddress||'').replace(/"/g,'&quot;')}"></div>
     </div>
     <div class="row" style="margin-top:8px;">
       <div class="field"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="f_paidByClient" style="width:auto;" ${e.paidByClient?'checked':''} onchange="togglePaidFields()"> 已收款</label></div>
@@ -518,7 +519,7 @@ function submitEvent(eventId) {
     items: editingItems.filter(it => it.label || it.amount),
     discount: Number(val('f_discount')) || 0, taxRate: Number(val('f_taxRate')) || 0,
     isOverseas: document.getElementById('f_isOverseas').checked,
-    invoiceNo: val('f_invoiceNo'), rmbAmount: val('f_rmbAmount') ? Number(val('f_rmbAmount')) : '',
+    invoiceNo: val('f_invoiceNo'), rmbAmount: val('f_rmbAmount') ? Number(val('f_rmbAmount')) : '', clientAddress: val('f_clientAddress'),
     paidByClient: document.getElementById('f_paidByClient').checked,
     commissionPaid: document.getElementById('f_commissionPaid').checked,
     paidDate: document.getElementById('f_paidByClient').checked ? val('f_paidDate') : '',
@@ -587,6 +588,7 @@ function printQuote(eventId) {
     </div>
     <hr>
     <div class="meta-row">公司名稱：${e.client||''}</div>
+    ${(e.isOverseas && e.clientAddress) ? `<div class="meta-row">公司地址：${e.clientAddress}</div>` : ''}
     <div class="meta-row">活動時間：${e.date||''}</div>
     <table>
       <colgroup><col class="label"><col class="price"></colgroup>
