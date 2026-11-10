@@ -64,7 +64,8 @@
   .modal-bg.open{display:flex;}
   .modal{background:var(--panel);border-radius:12px;padding:22px;width:min(520px,92vw);max-height:88vh;overflow:auto;}
   .print-sheet{page-break-after:always;}
-  @media print{ header,nav,.no-print{display:none !important;} main{padding:0;} .panel{border:none;} }
+  @page{ margin: 0; }
+  @media print{ header,nav,.no-print{display:none !important;} main{padding:12mm;} .panel{border:none;} }
 </style>
 </head>
 <body>
@@ -548,8 +549,8 @@ function printQuote(eventId) {
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
       *{box-sizing:border-box;}
-      @page{ size: A4; margin: 12mm; }
-      body{font-family:'Noto Sans TC',sans-serif;padding:0;color:#1a1a1a;font-size:12.5px;}
+      @page{ size: A4; margin: 0; }
+      body{font-family:'Noto Sans TC',sans-serif;padding:12mm;color:#1a1a1a;font-size:12.5px;}
       .head{display:flex;justify-content:space-between;align-items:flex-start;}
       .logo{font-family:'Anton',sans-serif;font-size:28px;letter-spacing:1.5px;line-height:1;}
       .tagline{font-size:9px;letter-spacing:2.5px;color:#333;margin-top:2px;}
@@ -573,7 +574,7 @@ function printQuote(eventId) {
       .sumtable tr.rmb td{background:#e6c771;font-weight:700;}
       .bank-box{border:1px solid #ccc;border-radius:4px;padding:10px 14px;margin-top:16px;font-size:10.5px;line-height:1.5;}
       .sign{text-align:center;font-size:12.5px;margin-top:16px;}
-      @media print{ body{padding:0;} }
+      @media print{ body{padding:12mm;} }
     </style></head><body>
     <div class="head">
       <div>
