@@ -806,15 +806,53 @@ function openBatchDisbForm(lockedCase) {
   `);
   renderBatchRows();
 }
+// 批次登錄的舞者順序：先排「這場活動已經有撥款紀錄的人」，再排「跟同一個客戶的其他活動合作過的人」（次數多的在前），
+// 其餘舞者維持原本的順序（前三名固定、再依年份）。回傳 [{ d: 舞者, tag: 提示文字 }]
+function getBatchEvent() {
+  const nameField = document.getElementById('b_eventName');
+  const sel = document.getElementById('b_event');
+  const eventId = sel ? sel.value : '';
+  const eventName = nameField ? nameField.value : (sel && sel.options[sel.selectedIndex] ? (sel.options[sel.selectedIndex].dataset.name || '') : '');
+  return { eventId, eventName };
+}
+function batchDancerList() {
+  const { eventId, eventName } = getBatchEvent();
+  const active = state.dancers.filter(d => d.status === '在職');
+  const disb = state.disbursements || [];
+  const ev = state.events.find(e => eventId && e.eventId === eventId) || state.events.find(e => eventName && e.name === eventName);
+  const client = ev && ev.client ? String(ev.client).trim() : '';
+  const isThis = r => (eventId && r.eventId === eventId) || (eventName && r.eventName === eventName);
+  const sameEvent = new Set(disb.filter(isThis).map(r => r.dancer));
+  const clientEvIds = new Set(), clientEvNames = new Set();
+  if (client) state.events.forEach(e => {
+    if (String(e.client||'').trim() === client && e !== ev) { clientEvIds.add(e.eventId); clientEvNames.add(e.name); }
+  });
+  const clientCount = {};
+  if (client) {
+    const seen = {};
+    disb.forEach(r => {
+      if (!(clientEvIds.has(r.eventId) || clientEvNames.has(r.eventName))) return;
+      const k = r.dancer + '|' + (r.eventId || r.eventName);
+      if (seen[k]) return; seen[k] = true;
+      clientCount[r.dancer] = (clientCount[r.dancer] || 0) + 1;
+    });
+  }
+  return active.map((d, idx) => {
+    const rank = sameEvent.has(d.name) ? 0 : (clientCount[d.name] ? 1 : 2);
+    const tag = rank === 0 ? '這場活動已有紀錄' : (rank === 1 ? `合作過同客戶 ${clientCount[d.name]} 場` : '');
+    return { d, tag, rank, cnt: clientCount[d.name] || 0, idx };
+  }).sort((a, b) => a.rank - b.rank || (a.rank === 1 ? b.cnt - a.cnt : 0) || a.idx - b.idx);
+}
 function renderBatchRows() {
   const isRehearsal = ['排練費用','教室費用'].includes(val('b_item'));
-  const activeDancers = state.dancers.filter(d => d.status === '在職');
+  const batchList = batchDancerList();
+  const activeDancers = batchList.map(x => x.d);
   document.getElementById('batchRowsWrap').innerHTML = `
     <table>
       <thead><tr><th>舞者</th><th>抽成比例</th>${isRehearsal ? '<th>時薪</th><th>時數</th>' : '<th>原始報價</th>'}<th>實領金額</th></tr></thead>
       <tbody>${activeDancers.map((d,i) => `
         <tr>
-          <td>${d.name}</td>
+          <td>${d.name}${batchList[i].tag ? `<br><span style="color:var(--muted);font-size:12px;">${batchList[i].tag}</span>` : ''}</td>
           <td><input type="number" step="0.01" id="br_rate_${i}" value="${d.rate}" style="width:70px;" oninput="updateBatchRowAmount(${i})"></td>
           ${isRehearsal ? `
             <td><input type="number" id="br_wage_${i}" style="width:80px;" oninput="updateBatchRowAmount(${i})"></td>
@@ -851,7 +889,7 @@ function submitBatchDisb() {
   const isRehearsal = ['排練費用','教室費用'].includes(item);
   const payDate = val('b_payDate');
   const note = val('b_note');
-  const activeDancers = state.dancers.filter(d => d.status === '在職');
+  const activeDancers = batchDancerList().map(x => x.d);
   const items = [];
   activeDancers.forEach((d,i) => {
     const rate = Number(document.getElementById(`br_rate_${i}`).value) || '';
