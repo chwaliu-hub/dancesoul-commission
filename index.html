@@ -95,14 +95,14 @@ const ITEM_TYPES = {
   '彩排費用': ['unitPrice','days','qty'],
   '盯場費用': ['unitPrice','qty'],
   '拍攝費用': ['unitPrice','qty'],
-  '教學': ['unitPrice','qty'],
+  '教學': ['unitPrice','lessons','qty'],
   '編舞費用': ['unitPrice','songs'],
   '助教協助': ['unitPrice','qty'],
   '領隊費用': ['unitPrice','qty'],
   '其他項目': ['unitPrice','qty']
 };
 const normItemType = t => t === '演出費' ? '舞蹈演出' : t;
-const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數', days:'天數'};
+const FIELD_LABEL = {unitPrice:'單價', qty:'人數', hourlyWage:'時薪', hours:'時數', songs:'首數', days:'天數', lessons:'堂數'};
 
 const TABS = [
   ['dashboard', '首頁'],
@@ -481,7 +481,7 @@ function renderItemsList() {
       </div>
       <div class="item-row-line2">
         ${fields.map(f => `
-          <span class="field-mini"><label>${FIELD_LABEL[f]}</label><input type="number" value="${it[f] ?? (f==='qty'||f==='hours'||f==='songs'||f==='days'?1:'')}" oninput="updateItemAmount(${i}, '${f}', this.value)"></span>
+          <span class="field-mini"><label>${FIELD_LABEL[f]}</label><input type="number" value="${it[f] ?? (f==='qty'||f==='hours'||f==='songs'||f==='days'||f==='lessons'?1:'')}" oninput="updateItemAmount(${i}, '${f}', this.value)"></span>
         `).join('')}
         <span class="field-mini"><label>金額</label><input type="number" id="itemAmt_${i}" value="${it.amount||0}" style="font-weight:700;" oninput="editingItems[${i}].amount=Number(this.value)||0"></span>
         <button class="link" onclick="removeItemRow(${i})">✕ 刪除</button>
@@ -499,7 +499,7 @@ function recalcItemAmount(i) {
   const fields = ITEM_TYPES[normItemType(it.type) || '舞蹈演出'];
   let amount = 1;
   fields.forEach(f => {
-    const def = (f === 'qty' || f === 'hours' || f === 'songs' || f === 'days') ? 1 : 0;
+    const def = (f === 'qty' || f === 'hours' || f === 'songs' || f === 'days' || f === 'lessons') ? 1 : 0;
     amount *= (Number(it[f]) ?? def) || def;
   });
   it.amount = amount;
@@ -604,6 +604,7 @@ function printQuote(eventId) {
           if (fields.includes('qty') && it.qty && it.qty != 1) breakdown += ` × ${it.qty}人`;
           if (fields.includes('hours') && it.hours) breakdown += ` × ${it.hours}時數`;
           if (fields.includes('days') && it.days && it.days != 1) breakdown += ` × ${it.days}天`;
+          if (fields.includes('lessons') && it.lessons && it.lessons != 1) breakdown += ` × ${it.lessons}堂`;
           if (fields.includes('songs') && it.songs && it.songs != 1) breakdown += ` × ${it.songs}首`;
           return `<tr><td>${label}${it.note?`（${it.note}）`:''}${breakdown?` <span style="color:#888;font-size:11px;">(${breakdown})</span>`:''}</td><td><div class="price-cell"><span>NT$</span><span>${money(it.amount)}</span></div></td></tr>`;
         }).join('')}
@@ -806,8 +807,18 @@ function openBatchDisbForm(lockedCase) {
   `);
   renderBatchRows();
 }
-// 批次登錄的舞者順序：先排「這場活動已經有撥款紀錄的人」，再排「跟同一個客戶的其他活動合作過的人」（次數多的在前），
-// 其餘舞者維持原本的順序（前三名固定、再依年份）。回傳 [{ d: 舞者, tag: 提示文字 }]
+// 批次登錄的舞者順序：先排「這場活動已經有撥款紀錄的人」，再排「做過同系列活動的人」（場數多的在前），
+// 其餘舞者維持原本的順序（前三名固定、再依年份）。
+// 「同系列」是看活動名稱開頭：去掉前面的日期後，取前兩個字當關鍵字（例如「安心亞0103台北商演」→「安心」、「F4成都演唱會」→「f4」），
+// 名稱有「＋」連接多組藝人時，每一組各取一個關鍵字。回傳 [{ d: 舞者, tag: 提示文字 }]
+function eventSeriesKeys(name) {
+  const out = new Set();
+  String(name || '').replace(/莉/g, '利').toLowerCase().split(/[＋+]/).forEach(seg => {
+    seg = seg.replace(/^\s*\d{1,2}[\/.]\d{1,2}\s*/, '').replace(/^\d+[-_]?/, '').trim();
+    if (seg.length >= 2) out.add(seg.slice(0, 2));
+  });
+  return out;
+}
 function getBatchEvent() {
   const nameField = document.getElementById('b_eventName');
   const sel = document.getElementById('b_event');
@@ -819,28 +830,26 @@ function batchDancerList() {
   const { eventId, eventName } = getBatchEvent();
   const active = state.dancers.filter(d => d.status === '在職');
   const disb = state.disbursements || [];
-  const ev = state.events.find(e => eventId && e.eventId === eventId) || state.events.find(e => eventName && e.name === eventName);
-  const client = ev && ev.client ? String(ev.client).trim() : '';
   const isThis = r => (eventId && r.eventId === eventId) || (eventName && r.eventName === eventName);
   const sameEvent = new Set(disb.filter(isThis).map(r => r.dancer));
-  const clientEvIds = new Set(), clientEvNames = new Set();
-  if (client) state.events.forEach(e => {
-    if (String(e.client||'').trim() === client && e !== ev) { clientEvIds.add(e.eventId); clientEvNames.add(e.name); }
-  });
-  const clientCount = {};
-  if (client) {
+  const myKeys = eventSeriesKeys(eventName);
+  const seriesCount = {};
+  if (myKeys.size) {
     const seen = {};
     disb.forEach(r => {
-      if (!(clientEvIds.has(r.eventId) || clientEvNames.has(r.eventName))) return;
-      const k = r.dancer + '|' + (r.eventId || r.eventName);
-      if (seen[k]) return; seen[k] = true;
-      clientCount[r.dancer] = (clientCount[r.dancer] || 0) + 1;
+      if (isThis(r)) return;
+      const ks = eventSeriesKeys(r.eventName);
+      let match = false; ks.forEach(k => { if (myKeys.has(k)) match = true; });
+      if (!match) return;
+      const key = r.dancer + '|' + (r.eventId || r.eventName);
+      if (seen[key]) return; seen[key] = true;
+      seriesCount[r.dancer] = (seriesCount[r.dancer] || 0) + 1;
     });
   }
   return active.map((d, idx) => {
-    const rank = sameEvent.has(d.name) ? 0 : (clientCount[d.name] ? 1 : 2);
-    const tag = rank === 0 ? '這場活動已有紀錄' : (rank === 1 ? `合作過同客戶 ${clientCount[d.name]} 場` : '');
-    return { d, tag, rank, cnt: clientCount[d.name] || 0, idx };
+    const rank = sameEvent.has(d.name) ? 0 : (seriesCount[d.name] ? 1 : 2);
+    const tag = rank === 0 ? '這場活動已有紀錄' : (rank === 1 ? `做過同系列活動 ${seriesCount[d.name]} 場` : '');
+    return { d, tag, rank, cnt: seriesCount[d.name] || 0, idx };
   }).sort((a, b) => a.rank - b.rank || (a.rank === 1 ? b.cnt - a.cnt : 0) || a.idx - b.idx);
 }
 function renderBatchRows() {
