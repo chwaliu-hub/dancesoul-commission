@@ -643,9 +643,9 @@ function renderDisbursements() {
     else renderDisbCaseList();
   }).catch(showErr);
 }
-function _disbGroups() {
+function _disbGroups(month) {
   const groups = {};
-  state.disbursements.forEach(d => {
+  state.disbursements.filter(d => !month || (d.payDate && String(d.payDate).slice(0, 7) === month)).forEach(d => {
     const key = d.eventName || '(未命名活動)';
     if (!groups[key]) groups[key] = { eventName: key, eventId: d.eventId || '', records: [] };
     if (!groups[key].eventId && d.eventId) groups[key].eventId = d.eventId;
@@ -664,6 +664,7 @@ function renderDisbCaseList() {
       <div class="toolbar"><h2>撥款明細</h2><button class="primary" onclick="openBatchDisbForm()">整場活動批次登錄</button></div>
       <div class="row" style="margin-bottom:10px;">
         <div class="field" style="flex:2;"><input id="caseSearch" placeholder="搜尋案子名稱" oninput="renderDisbCaseListTable()"></div>
+        <div class="field" style="flex:1;min-width:170px;"><label>只看這個月發款的（依發款日期）</label><input id="caseMonth" type="month" onchange="renderDisbCaseListTable()"></div>
         <div class="field" style="align-self:center;flex:1;"><label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="showFinalizedCases" style="width:auto;" onchange="renderDisbCaseListTable()"> 顯示已全數核定的案子</label></div>
       </div>
       <div id="caseListWrap"></div>
@@ -673,11 +674,13 @@ function renderDisbCaseList() {
 function renderDisbCaseListTable() {
   const q = (document.getElementById('caseSearch')?.value || '').toLowerCase();
   const showFinalized = document.getElementById('showFinalizedCases')?.checked;
-  let groups = _disbGroups();
-  if (!showFinalized) groups = groups.filter(g => g.pendingCount > 0);
+  const month = document.getElementById('caseMonth')?.value || '';
+  let groups = _disbGroups(month);
+  if (!showFinalized && !month) groups = groups.filter(g => g.pendingCount > 0);
   if (q) groups = groups.filter(g => g.eventName.toLowerCase().includes(q));
   groups.sort((a,b) => b.pendingCount - a.pendingCount || a.eventName.localeCompare(b.eventName));
-  document.getElementById('caseListWrap').innerHTML = groups.map(g => `
+  const monthSummary = month ? `<div class="panel" style="margin-bottom:10px;padding:14px 16px;background:var(--accent-soft);"><b>${month} 發款合計</b>　${groups.length} 個活動、${groups.reduce((s,g)=>s+g.records.length,0)} 筆，共 <b>$${money(groups.reduce((s,g)=>s+g.total,0))}</b></div>` : '';
+  document.getElementById('caseListWrap').innerHTML = monthSummary + groups.map(g => `
     <div class="panel" style="margin-bottom:10px;padding:14px 16px;cursor:pointer;" onclick='openDisbCase(${JSON.stringify(g.eventName)})'>
       <div class="toolbar" style="margin-bottom:0;">
         <div>
@@ -691,7 +694,7 @@ function renderDisbCaseListTable() {
           ${g.pendingCount ? `<button class="ghost" onclick='event.stopPropagation();quickFinalizeCase(${JSON.stringify(g.eventName)})'>核定整個案子</button>` : ''}
         </div>
       </div>
-    </div>`).join('') || '<div class="panel"><div class="empty">沒有符合的案子</div></div>';
+    </div>`).join('') || `<div class="panel"><div class="empty">${month ? month + ' 沒有發款紀錄' : '沒有符合的案子'}</div></div>`;
 }
 function quickFinalizeCase(eventName) {
   showModal(`
