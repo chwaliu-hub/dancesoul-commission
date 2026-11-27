@@ -393,6 +393,7 @@ function renderEventsTable() {
           <td><input type="checkbox" style="width:auto;" ${e.paidByClient?'checked':''} onchange="quickToggleEvent('${e.eventId}','paidByClient',this.checked)"></td>
           <td><input type="checkbox" style="width:auto;" ${e.commissionPaid?'checked':''} onchange="quickToggleEvent('${e.eventId}','commissionPaid',this.checked)"></td>
           <td><button class="link" onclick='openEventForm(${JSON.stringify(e)})'>編輯</button>
+              <button class="link" onclick="copyEvent('${e.eventId}')">複製</button>
               <button class="link" onclick="printQuote('${e.eventId}')">列印報價單</button>
               <button class="link" onclick="deleteEvent('${e.eventId}')">刪除</button></td>
         </tr>`).join('') || '<tr><td colspan=8 class="empty">沒有符合的活動</td></tr>'}
@@ -414,6 +415,16 @@ function quickToggleEvent(eventId, field, value) {
 }
 
 let editingItems = [];
+function copyEvent(eventId) {
+  const e = state.events.find(x => x.eventId === eventId);
+  if (!e) return;
+  // 複製報價內容（項目、客戶、折讓、海外客戶設定），日期、收款狀態、Invoice#、人民幣金額都清空，當成新活動重新填
+  openEventForm({
+    name: e.name + '（複製）', date: '', client: e.client, status: '報價中',
+    items: JSON.parse(JSON.stringify(e.items || [])), discount: e.discount,
+    isOverseas: e.isOverseas, clientAddress: e.clientAddress || ''
+  });
+}
 function openEventForm(e) {
   e = e || {};
   editingItems = (e.items && e.items.length) ? JSON.parse(JSON.stringify(e.items)).map(it => Object.assign(it, {type: normItemType(it.type)})) : [{type:'舞蹈演出',customLabel:'',note:'',unitPrice:'',qty:1,hourlyWage:'',hours:1,songs:1,amount:0}];
